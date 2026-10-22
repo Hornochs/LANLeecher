@@ -44,12 +44,12 @@ func (a *API) openAPIJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(specJSON)
+	_, _ = w.Write(specJSON)
 }
 
 func (a *API) openAPIYAML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
-	w.Write(openAPIYAMLData)
+	_, _ = w.Write(openAPIYAMLData)
 }
 
 type docOp struct {

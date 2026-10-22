@@ -54,7 +54,7 @@ func newFixture(t *testing.T) *fixture {
 	cfg := config.Default()
 	db.HostnamePriority = cfg.Resolver.HostnamePriority
 	raw := make([]byte, 32)
-	rand.Read(raw)
+	_, _ = rand.Read(raw)
 	key, _ := secret.New(raw)
 
 	sw := &store.Switch{Name: "sw1", Host: "192.0.2.2", Port: 161, SNMPVersion: "v2c", CredentialsEnc: []byte{0}, FDBAdapter: "auto", Enabled: true}
@@ -110,8 +110,12 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.RecordIP(ctx, "02:00:00:00:00:01", "192.0.2.10", "dhcp", now)
-	db.RecordHostname(ctx, "02:00:00:00:00:01", "DESKTOP-FRAG42", "netbios", now)
+	if _, err := db.RecordIP(ctx, "02:00:00:00:00:01", "192.0.2.10", "dhcp", now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.RecordHostname(ctx, "02:00:00:00:00:01", "DESKTOP-FRAG42", "netbios", now); err != nil {
+		t.Fatal(err)
+	}
 
 	token := func(scopes ...string) string {
 		plain := auth.NewAPIToken()

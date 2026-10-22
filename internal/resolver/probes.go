@@ -246,7 +246,9 @@ func udpExchangeMulti(ctx context.Context, targets []netip.AddrPort, req []byte,
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}
-	conn.SetDeadline(deadline)
+	if err := conn.SetDeadline(deadline); err != nil {
+		return nil, err
+	}
 	for _, t := range targets {
 		if _, err := conn.WriteToUDPAddrPort(req, t); err != nil && len(targets) == 1 {
 			return nil, err
@@ -266,6 +268,6 @@ func udpExchangeMulti(ctx context.Context, targets []netip.AddrPort, req []byte,
 
 func randomID() uint16 {
 	var b [2]byte
-	rand.Read(b[:])
+	_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
 	return binary.BigEndian.Uint16(b[:])
 }

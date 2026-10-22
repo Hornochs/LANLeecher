@@ -80,8 +80,12 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.DB.TouchLogin(r.Context(), u.ID)
-	s.DB.PurgeSessions(r.Context())
+	if err := s.DB.TouchLogin(r.Context(), u.ID); err != nil {
+		s.Log.Warn("record login time", "err", err)
+	}
+	if err := s.DB.PurgeSessions(r.Context()); err != nil {
+		s.Log.Warn("purge expired sessions", "err", err)
+	}
 	http.SetCookie(w, &http.Cookie{Name: app.SessionCookie, Value: token, Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.Cfg.SecureCookies(), MaxAge: int((30 * 24 * time.Hour).Seconds())})
 	http.SetCookie(w, &http.Cookie{Name: loginCSRFCookie, Value: "", Path: "/login", MaxAge: -1})
@@ -92,13 +96,18 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) loginFailed(w http.ResponseWriter, r *http.Request, keys []string, next, username string) {
 	s.login.Fail(keys...)
-	s.DB.Audit(r.Context(), store.AuditEntry{Actor: "anonymous", Action: "login.failed", Target: username, IP: s.ClientIP(r)})
+	if err := s.DB.Audit(r.Context(), store.AuditEntry{Actor: "anonymous", Action: "login.failed", Target: username,
+		IP: s.ClientIP(r)}); err != nil {
+		s.Log.Error("audit log", "err", err, "action", "login.failed")
+	}
 	s.renderLogin(w, r, http.StatusUnauthorized, "error.login", next, username)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if sess := app.Session(r.Context()); sess != nil {
-		s.DB.DeleteSession(r.Context(), sess.ID)
+		if err := s.DB.DeleteSession(r.Context(), sess.ID); err != nil {
+			s.Log.Warn("delete session", "err", err)
+		}
 	}
 	http.SetCookie(w, &http.Cookie{Name: app.SessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
 		Secure: s.Cfg.SecureCookies(), SameSite: http.SameSiteLaxMode})

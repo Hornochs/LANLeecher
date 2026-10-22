@@ -122,7 +122,9 @@ func (a *API) authenticate(w http.ResponseWriter, r *http.Request) (principal, b
 			problem(w, http.StatusTooManyRequests, "rate_limited", "Too Many Requests", "rate limit exceeded for this token")
 			return principal{}, false
 		}
-		a.DB.TouchAPIToken(context.WithoutCancel(r.Context()), tok.ID)
+		if err := a.DB.TouchAPIToken(context.WithoutCancel(r.Context()), tok.ID); err != nil {
+			a.Log.Warn("record token use", "err", err)
+		}
 		return principal{token: tok}, true
 	}
 	if s, u := a.LoadSession(r); u != nil {
@@ -203,7 +205,7 @@ type Problem struct {
 func problem(w http.ResponseWriter, status int, code, title, detail string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Problem{Type: "urn:lanleecher:problem:" + code, Title: title, Status: status,
+	_ = json.NewEncoder(w).Encode(Problem{Type: "urn:lanleecher:problem:" + code, Title: title, Status: status,
 		Detail: detail, Code: code})
 }
 
@@ -212,7 +214,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	enc.Encode(v)
+	_ = enc.Encode(v) // the client may have gone away
 }
 
 func (a *API) internal(w http.ResponseWriter, r *http.Request, err error) {

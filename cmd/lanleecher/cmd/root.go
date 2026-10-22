@@ -78,6 +78,13 @@ type env struct {
 	log *slog.Logger
 }
 
+// audit writes an audit log entry for a CLI action; a failure is logged.
+func (e *env) audit(ctx context.Context, entry store.AuditEntry) {
+	if err := e.db.Audit(ctx, entry); err != nil {
+		e.log.Error("audit log", "err", err, "action", entry.Action)
+	}
+}
+
 // close closes the database. When the CLI runs as root (sudo lanleecher user
 // create …), files it created are handed to the owner of the data directory,
 // so the service user can still write them.

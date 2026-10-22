@@ -58,7 +58,10 @@ func (s *Server) loadDHCPSource(w http.ResponseWriter, r *http.Request) (*store.
 			s.fail(w, r, err)
 			return nil, sec, false
 		}
-		json.Unmarshal(plain, &sec)
+		if err := json.Unmarshal(plain, &sec); err != nil {
+			s.fail(w, r, err)
+			return nil, sec, false
+		}
 	}
 	return src, sec, true
 }
@@ -159,7 +162,7 @@ func (s *Server) dhcpSave(w http.ResponseWriter, r *http.Request, src *store.DHC
 		s.Log.Warn("certificate verification disabled for DHCP source", "source", src.Name)
 	}
 	s.Audit(r, action, src.Name, details)
-	s.DHCP.Reload(r.Context())
+	s.reloadDHCP(r)
 	redirect(w, r, "/admin/dhcp/"+strconv.FormatInt(src.ID, 10)+"?test=1")
 }
 
@@ -185,7 +188,7 @@ func (s *Server) dhcpDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Audit(r, "dhcp.delete", src.Name, src.URL)
-	s.DHCP.Reload(r.Context())
+	s.reloadDHCP(r)
 	redirect(w, r, "/admin/dhcp?ok=deleted")
 }
 
@@ -297,7 +300,7 @@ func (s *Server) dhcpTrust(w http.ResponseWriter, r *http.Request) {
 		old = " replaces " + kea.FormatFingerprint(src.PinnedSHA256)
 	}
 	s.Audit(r, "dhcp.cert.trust", src.Name, "SHA-256 "+kea.FormatFingerprint(fp)+old)
-	s.DHCP.Reload(r.Context())
+	s.reloadDHCP(r)
 	redirect(w, r, "/admin/dhcp/"+strconv.FormatInt(src.ID, 10)+"?ok=cert_trusted&test=1")
 }
 
@@ -311,7 +314,7 @@ func (s *Server) dhcpUntrust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Audit(r, "dhcp.cert.revoke", src.Name, "SHA-256 "+kea.FormatFingerprint(src.PinnedSHA256))
-	s.DHCP.Reload(r.Context())
+	s.reloadDHCP(r)
 	redirect(w, r, "/admin/dhcp/"+strconv.FormatInt(src.ID, 10)+"?ok=saved")
 }
 
@@ -328,4 +331,11 @@ func (s *Server) dhcpProblems(r *http.Request) []*store.DHCPSource {
 		}
 	}
 	return out
+}
+
+// reloadDHCP restarts the DHCP pollers after a change; failures are logged.
+func (s *Server) reloadDHCP(r *http.Request) {
+	if err := s.DHCP.Reload(r.Context()); err != nil {
+		s.Log.Error("reload dhcp sources", "err", err)
+	}
 }

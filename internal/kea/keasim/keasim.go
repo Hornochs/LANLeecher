@@ -181,7 +181,7 @@ func page(leases []Lease, args map[string]any) result {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 // SelfSigned returns a fresh self-signed certificate for the given hosts.

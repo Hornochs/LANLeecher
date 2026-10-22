@@ -591,13 +591,16 @@ func (s *Server) exportEvent(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`.csv"`)
 		cw := csv.NewWriter(w)
-		cw.Write([]string{"rank", "type", "id", "name", "hostname", "ip", "macs", "bytes_down", "bytes_up", "hidden"})
+		_ = cw.Write([]string{"rank", "type", "id", "name", "hostname", "ip", "macs", "bytes_down", "bytes_up", "hidden"})
 		for _, e := range rows {
-			cw.Write([]string{strconv.Itoa(e.Rank), e.Type, strconv.FormatInt(e.Key, 10), csvSafe(e.Name), csvSafe(e.Hostname),
+			_ = cw.Write([]string{strconv.Itoa(e.Rank), e.Type, strconv.FormatInt(e.Key, 10), csvSafe(e.Name), csvSafe(e.Hostname),
 				e.IP, strings.Join(e.MACs, " "), strconv.FormatInt(e.BytesDown, 10), strconv.FormatInt(e.BytesUp, 10),
 				strconv.FormatBool(e.Hidden)})
 		}
 		cw.Flush()
+		if err := cw.Error(); err != nil {
+			s.Log.Debug("csv export interrupted", "err", err)
+		}
 	case "json":
 		type entry struct {
 			Rank      int      `json:"rank"`
@@ -620,7 +623,7 @@ func (s *Server) exportEvent(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`.json"`)
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		enc.Encode(map[string]any{"event": map[string]any{"name": ev.Name, "slug": ev.Slug, "started_at": ev.StartedAt,
+		_ = enc.Encode(map[string]any{"event": map[string]any{"name": ev.Name, "slug": ev.Slug, "started_at": ev.StartedAt,
 			"ended_at": ev.EndedAt}, "totals": map[string]any{"bytes_down": sum.BytesDown, "bytes_up": sum.BytesUp,
 			"clients": sum.Clients}, "entries": out})
 	default:

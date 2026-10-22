@@ -256,7 +256,7 @@ func (s *Server) renderStatus(w http.ResponseWriter, r *http.Request, status int
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	w.Write([]byte(buf.String()))
+	_, _ = w.Write([]byte(buf.String())) // the client may have gone away
 }
 
 // partial renders a named block of a page without the layout (htmx).

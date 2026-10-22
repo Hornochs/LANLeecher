@@ -183,8 +183,10 @@ func (a *API) audit(r *http.Request, action, target string) {
 		a.Audit(r, action, target, "api")
 		return
 	}
-	a.DB.Audit(r.Context(), store.AuditEntry{Actor: "token:" + p.token.Name, Action: action, Target: target,
-		Details: "api", IP: a.ClientIP(r)})
+	if err := a.DB.Audit(r.Context(), store.AuditEntry{Actor: "token:" + p.token.Name, Action: action, Target: target,
+		Details: "api", IP: a.ClientIP(r)}); err != nil {
+		a.Log.Error("audit log", "err", err, "action", action)
+	}
 }
 
 // HistoryJSON is an IP or hostname history entry.
@@ -506,5 +508,5 @@ func (a *API) metrics(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Fprintf(&b, "lanleecher_switch_up{switch=%q} %d\n", s.Name, v)
 	}
-	w.Write([]byte(b.String()))
+	_, _ = w.Write([]byte(b.String()))
 }

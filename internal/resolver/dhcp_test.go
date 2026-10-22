@@ -35,7 +35,9 @@ func TestObserveDHCP(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A NetBIOS name exists already; the DHCP hostname ranks higher.
-	db.RecordHostname(ctx, known.String(), "OLD-NETBIOS", "netbios", store.Now())
+	if _, err := db.RecordHostname(ctx, known.String(), "OLD-NETBIOS", "netbios", store.Now()); err != nil {
+		t.Fatal(err)
+	}
 
 	n := s.ObserveDHCP(ctx, []DHCPLease{
 		{MAC: known, IP: netip.MustParseAddr("192.0.2.10"), Hostname: "gamer-pc.lan.example."},

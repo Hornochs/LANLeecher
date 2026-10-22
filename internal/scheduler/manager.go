@@ -80,7 +80,9 @@ func (m *Manager) Reload(ctx context.Context) error {
 		target, err := m.Target(s)
 		if err != nil {
 			m.log.Error("switch credentials", "switch", s.Name, "err", err)
-			m.db.SetSwitchStatus(ctx, s.ID, false, err.Error(), store.Now())
+			if serr := m.db.SetSwitchStatus(ctx, s.ID, false, err.Error(), store.Now()); serr != nil {
+				m.log.Error("save switch status", "switch", s.Name, "err", serr)
+			}
 			continue
 		}
 		p := newPoller(m, s, target)
@@ -139,9 +141,7 @@ func (m *Manager) Test(ctx context.Context, t snmp.Target) (*TestResult, error) 
 		return nil, err
 	}
 	res := &TestResult{System: sys, Duration: time.Since(start)}
-	for _, i := range sortedInterfaces(snap) {
-		res.Interfaces = append(res.Interfaces, i)
-	}
+	res.Interfaces = append(res.Interfaces, sortedInterfaces(snap)...)
 	return res, nil
 }
 

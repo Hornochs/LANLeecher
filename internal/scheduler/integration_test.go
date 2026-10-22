@@ -56,7 +56,7 @@ func startSimulator(t *testing.T) snmp.Target {
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
 
 	target := snmp.Target{Host: "127.0.0.1", Port: port, Version: "v2c", Creds: snmp.Credentials{Community: "testswitch"},
 		Timeout: time.Second, Retries: 0}
@@ -93,7 +93,7 @@ func TestPollAndBookAgainstSimulator(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := make([]byte, 32)
-	rand.Read(raw)
+	_, _ = rand.Read(raw)
 	key, _ := secret.New(raw)
 	plain, _ := target.Creds.Marshal()
 	enc, _ := key.Encrypt(plain)

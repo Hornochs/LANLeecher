@@ -70,11 +70,11 @@ var serverCmd = &cobra.Command{
 				http.Error(w, "db unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			w.Write([]byte("ok"))
+			_, _ = w.Write([]byte("ok"))
 		})
 		r.Get("/llms.txt", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.Write([]byte(lanleecher.LLMsTxt))
+			_, _ = w.Write([]byte(lanleecher.LLMsTxt))
 		})
 		r.Mount("/api", apiHandler.Routes())
 		r.With(a.SessionMiddleware).Mount("/", ui.Routes())
@@ -91,8 +91,12 @@ var serverCmd = &cobra.Command{
 			signal.Notify(hup, syscall.SIGHUP)
 			for range hup {
 				log.Info("SIGHUP: reloading switches")
-				a.Sched.Reload(ctx)
-				a.DHCP.Reload(ctx)
+				if err := a.Sched.Reload(ctx); err != nil {
+					log.Error("reload switches", "err", err)
+				}
+				if err := a.DHCP.Reload(ctx); err != nil {
+					log.Error("reload dhcp sources", "err", err)
+				}
 			}
 		}()
 

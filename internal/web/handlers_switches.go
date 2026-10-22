@@ -256,7 +256,9 @@ func (s *Server) switchDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Audit(r, "switch.delete", sw.Name, sw.Host)
-	s.Sched.Reload(r.Context())
+	if err := s.Sched.Reload(r.Context()); err != nil {
+		s.Log.Error("reload pollers", "err", err)
+	}
 	redirect(w, r, "/switches?ok=deleted")
 }
 
@@ -282,7 +284,7 @@ func (s *Server) switchTest(w http.ResponseWriter, r *http.Request) {
 	res, err := s.Sched.Test(r.Context(), t)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(`<section class="card test-fail"><h3>✗ ` + p.T("switches.test_fail") + `</h3><p class="error">` +
+		_, _ = w.Write([]byte(`<section class="card test-fail"><h3>✗ ` + p.T("switches.test_fail") + `</h3><p class="error">` +
 			htmlEscape(err.Error()) + `</p><p class="muted small">` + p.T("switches.test_fail_hint") + `</p></section>`))
 		return
 	}

@@ -139,7 +139,7 @@ var userCreateCmd = &cobra.Command{
 		if err := e.db.CreateUser(cmd.Context(), u); err != nil {
 			return err
 		}
-		e.db.Audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "user.create", Target: u.Username, Details: role})
+		e.audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "user.create", Target: u.Username, Details: role})
 		fmt.Printf("user %s created with role %s\n", u.Username, u.Role)
 		return nil
 	},
@@ -170,7 +170,7 @@ var userPasswdCmd = &cobra.Command{
 		if err := e.db.SetPassword(cmd.Context(), u.ID, hash); err != nil {
 			return err
 		}
-		e.db.Audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "user.password", Target: u.Username})
+		e.audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "user.password", Target: u.Username})
 		fmt.Println("password changed")
 		return nil
 	},
@@ -215,7 +215,7 @@ var eventStartCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		e.db.Audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "event.start", Target: ev.Slug, Details: ev.Name})
+		e.audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "event.start", Target: ev.Slug, Details: ev.Name})
 		fmt.Printf("event %q started (%s)\n", ev.Name, ev.Slug)
 		return nil
 	},
@@ -237,7 +237,7 @@ var eventStopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		e.db.Audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "event.stop", Target: ev.Slug})
+		e.audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "event.stop", Target: ev.Slug})
 		fmt.Printf("event %q stopped\n", ev.Name)
 		return nil
 	},
@@ -322,7 +322,7 @@ var switchAddCmd = &cobra.Command{
 		if err := e.db.CreateSwitch(cmd.Context(), sw); err != nil {
 			return err
 		}
-		e.db.Audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "switch.create", Target: name, Details: host + " v2c"})
+		e.audit(cmd.Context(), store.AuditEntry{Actor: "cli", Action: "switch.create", Target: name, Details: host + " v2c"})
 		fmt.Printf("switch %s added (id %d); a running server picks it up on SIGHUP or restart\n", name, sw.ID)
 		return nil
 	},

@@ -118,7 +118,7 @@ func (db *DB) InTx(ctx context.Context, fn func(*Tx) error) error {
 		return err
 	}
 	if err := fn(&Tx{tx: tx}); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback() // the error of fn is the one that matters
 		return err
 	}
 	return tx.Commit()

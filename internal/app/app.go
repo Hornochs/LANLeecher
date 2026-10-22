@@ -117,7 +117,9 @@ func (a *App) LoadSession(r *http.Request) (*store.Session, *store.User) {
 	}
 	if time.Until(s.ExpiresAt) < SessionTTL/2 {
 		s.ExpiresAt = store.Now().Add(SessionTTL)
-		a.DB.ExtendSession(r.Context(), s.ID, s.ExpiresAt)
+		if err := a.DB.ExtendSession(r.Context(), s.ID, s.ExpiresAt); err != nil {
+			a.Log.Warn("extend session", "err", err)
+		}
 	}
 	return s, u
 }
