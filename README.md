@@ -19,8 +19,8 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
   top 10/20/50, per switch or time range, and across all LAN parties.
 - **History per device:** download and upload of every machine at every event, with its IP and
   hostname history and the ports it was seen on.
-- **Beamer view** `/board` with live updates, and the same data via API for OBS overlays and
-  Discord bots.
+- **Beamer view** `/board` with live updates, and the same data via API for Discord bots and
+  other tools.
 - **Switch and port management** with a connection test, port roles (client, multi-client, server,
   uplink), labels, and hints for ports that look like uplinks (LLDP neighbor, many MACs).
 - **Hiding** of game servers, caches and uplinks from rankings – they are still counted, and hiding
@@ -78,7 +78,7 @@ Then log in, add your switches under **Switches**, mark the uplinks and start th
 - [docs/switch-compatibility.md](docs/switch-compatibility.md) – required MIBs, FDB adapters, tested models
 - [docs/concepts.md](docs/concepts.md) – events, devices, port groups, roles, hiding, directions
 - [docs/api.md](docs/api.md) – authentication, scopes, endpoints, errors, metrics
-- [examples/](examples/) – OBS overlay, Discord bot, Grafana, Go and shell clients
+- [examples/](examples/) – Discord bot, Grafana, Go and shell clients
 - [docs/architecture.md](docs/architecture.md) – how LANLeecher is built
 - [docs/security.md](docs/security.md) – threat model and residual risks
 - [docs/adapters.md](docs/adapters.md) – supporting a new switch or name source

@@ -28,7 +28,7 @@ A checklist for organizers: what to do before, during and after the event.
 - [ ] Give table ports labels if you like – they show up in port lists and for port groups.
 - [ ] Ask Windows guests to set the LAN network to **Private**: in the "Public" profile the Windows
       firewall blocks NetBIOS and mDNS, and only the MAC remains as a name.
-- [ ] Create an API token with scope `read:board` for an OBS overlay or Discord bot
+- [ ] Create an API token with scope `read:board` for a Discord bot
       ([examples/](../examples/)).
 
 ## Event start

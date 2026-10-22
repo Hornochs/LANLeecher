@@ -27,7 +27,7 @@ Authorization: Bearer llk_3Fq9…
 | `read:rankings` | rankings, events, metrics – names only, no MACs or IPs |
 | `read:clients` | client details: MAC, IP, hostname, histories, ports; MAC/IP/hostname fields in rankings |
 | `write:events` | start and stop events |
-| `read:board` | the board endpoints only – for overlays |
+| `read:board` | the board endpoints only – for bots and second screens |
 
 Logged-in users have `read:*` as viewers and `write:events` from operator upwards.
 
@@ -60,8 +60,7 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 | `GET /api/v1/metrics` | read:rankings | Prometheus metrics |
 
 With `board.enabled: true` and `board.public: true` in the configuration, the board endpoints also
-work without a token. The board endpoints allow cross-origin requests (CORS) with a bearer token, so
-an overlay loaded from a local file can read them; cookies are never accepted cross-origin.
+work without a token.
 
 ## Examples
 
@@ -117,7 +116,7 @@ data: {"event":{"name":"Basement LAN #12",…},"totals":{…},"top_download":[�
 ```
 
 A comment line `: ping` is sent every 25 seconds to keep proxies from closing the connection.
-More examples (overlay, Discord, Grafana, Python, Go) are in [`examples/`](../examples/).
+More examples (Discord, Grafana, Python, Go) are in [`examples/`](../examples/).
 
 ## Errors
 

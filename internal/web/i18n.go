@@ -215,7 +215,7 @@ var messages = map[string][2]string{
 	"scope.read:rankings":   {"Toplisten, Events, Metriken – ohne MACs/IPs", "Rankings, events, metrics – no MACs/IPs"},
 	"scope.read:clients":    {"Detailabfragen inkl. MAC, IP, Hostname", "Client details incl. MAC, IP, hostname"},
 	"scope.write:events":    {"Events starten und beenden", "Start and stop events"},
-	"scope.read:board":      {"Nur Beameransicht (für Overlays)", "Board only (for overlays)"},
+	"scope.read:board":      {"Nur Beameransicht (für Bots und Anzeigen)", "Board only (for bots and displays)"},
 
 	"audit.when":    {"Zeit", "Time"},
 	"audit.who":     {"Wer", "Who"},

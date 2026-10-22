@@ -1,5 +1,5 @@
 // Package board builds the beamer/scoreboard content. The /board page and
-// GET /api/v1/board render exactly the same data, so every overlay or bot
+// GET /api/v1/board render exactly the same data, so every bot or second screen
 // sees what the beamer shows.
 package board
 

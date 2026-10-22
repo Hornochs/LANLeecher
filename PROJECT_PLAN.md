@@ -287,7 +287,7 @@ A read-only beamer/scoreboard mode under `/board` that can be turned off and onl
 
 ## API & Security
 
-The API is a JSON REST API under `/api/v1`, secured with bearer tokens that admins create in the web UI. Tokens are long-lived and restricted by scope – suitable for overlays, Discord bots, Grafana or scripts.
+The API is a JSON REST API under `/api/v1`, secured with bearer tokens that admins create in the web UI. Tokens are long-lived and restricted by scope – suitable for Discord bots, Grafana or scripts.
 
 ### Security
 
@@ -320,14 +320,14 @@ The API is a JSON REST API under `/api/v1`, secured with bearer tokens that admi
 
 ### Beamer view via the API
 
-The beamer view `/board` has no logic of its own: it only renders the response of `GET /api/v1/board`. Everything the beamer shows is therefore available identically to any other tool – an OBS overlay, a Discord bot or a second dashboard.
+The beamer view `/board` has no logic of its own: it only renders the response of `GET /api/v1/board`. Everything the beamer shows is therefore available identically to any other tool – a Discord bot or a second dashboard.
 
 | Method & path | Scope | Description |
 | --- | --- | --- |
 | `GET /api/v1/board` | read:board | Complete beamer content as JSON; `?limit=10\|20\|50&event=<slug>` |
 | `GET /api/v1/board/stream` | read:board | The same data as Server-Sent Events, a new event after each poll |
 
-Response content: event name and start time, generation time, total traffic (download, upload, number of clients), current throughput in bit/s, top downloaders and top uploaders with rank, display name, `bytes_down` and `bytes_up` and the change since the previous poll (for up/down arrows). As on the beamer, hidden entries, MACs and IPs are missing; devices without a hostname appear as "Client #&lt;id&gt;". The dedicated scope `read:board` allows handing out a token for overlays only, without access to client details.
+Response content: event name and start time, generation time, total traffic (download, upload, number of clients), current throughput in bit/s, top downloaders and top uploaders with rank, display name, `bytes_down` and `bytes_up` and the change since the previous poll (for up/down arrows). As on the beamer, hidden entries, MACs and IPs are missing; devices without a hostname appear as "Client #&lt;id&gt;". The dedicated scope `read:board` allows handing out a token for bots and displays only, without access to client details.
 
 ```json
 {
@@ -410,7 +410,7 @@ Everything is documented so that a human or an LLM in another project can build 
 - `llms.txt` in the repo root, embedded in the binary and served at `/llms.txt` of a running instance (no data, no auth): short description, key concepts, links to spec and docs.
 - `docs/llms-full.txt`: automatically generated complete version of concepts, API docs and spec in one file, to paste directly into a prompt.
 - `docs/concepts.md` as a glossary: event, device, MAC, port group, role, hiding, download/upload (incl. mapping to `ifHCOutOctets`/`ifHCInOctets`), reset behavior.
-- `examples/`: runnable examples with `curl`, Python and Go – beamer overlay, Discord bot with top 10, Grafana query, history of a device.
+- `examples/`: runnable examples with `curl`, Python and Go – Discord bot with top 10, Grafana query, history of a device.
 - `AGENTS.md` / `CLAUDE.md` with architecture, conventions and test commands for AI-assisted contributions.
 
 ### Operations and code
@@ -435,7 +435,7 @@ Each milestone ends with green tests and a working state; they are worked throug
 8. **API** ✓ – tokens with scopes, all endpoints, OpenAPI spec with route/spec test in CI, board endpoint with SSE stream, rate limit, Prometheus metrics. Open: response validation with `kin-openapi`.
 9. **Resolvers & history** (partly) – done: `snmp-arp`, `local-neigh`, `dns-ptr`, NetBIOS, mDNS, LLMNR, IP/hostname history, merge suggestions and merge UI. Open: `dhcp-leases` with the optional Kea integration via HTTPS.
 10. **Packaging & release** ✓ – GoReleaser/nFPM for deb, rpm, Arch, apk, systemd unit, sysusers, Docker (`dockers_v2`), release workflow with attestations, package smoke tests. Open: upgrade test from the previous version (once a first release exists).
-11. **Docs & polish** ✓ – README, `docs/` (installation, generated configuration reference and JSON Schema, reverse proxy, LAN party guide, switch compatibility, concepts, API guide, architecture, security, adapters, roadmap), ADRs, `llms.txt` and generated `llms-full.txt`, `examples/` (OBS overlay, Discord, Grafana, Go, curl), CHANGELOG, CONTRIBUTING, SECURITY, Dependabot, screenshots from a simulated demo switch. Open: first test at a real LAN.
+11. **Docs & polish** ✓ – README, `docs/` (installation, generated configuration reference and JSON Schema, reverse proxy, LAN party guide, switch compatibility, concepts, API guide, architecture, security, adapters, roadmap), ADRs, `llms.txt` and generated `llms-full.txt`, `examples/` (Discord, Grafana, Go, curl), CHANGELOG, CONTRIBUTING, SECURITY, Dependabot, screenshots from a simulated demo switch. Open: first test at a real LAN.
 
 ### Decisions
 

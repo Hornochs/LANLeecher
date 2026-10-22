@@ -37,7 +37,7 @@
   <h3>{{.T "tokens.create"}}</h3>
   <form method="post" action="/admin/tokens" class="form-grid">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <label>{{.T "col.name"}}<input name="name" required maxlength="60" placeholder="OBS-Overlay"></label>
+    <label>{{.T "col.name"}}<input name="name" required maxlength="60" placeholder="Discord bot"></label>
     <fieldset><legend>Scopes</legend>
       {{range .Data.Scopes}}<label class="check"><input type="checkbox" name="scopes" value="{{.}}"> <code>{{.}}</code> <span class="muted small">{{$.T (print "scope." .)}}</span></label>{{end}}
     </fieldset>
