@@ -22,6 +22,8 @@ internal/api/            REST v1; openapi.yaml is the single source of truth (a 
 internal/web/            html/template + htmx, embedded assets, i18n (en/de) in i18n.go
 internal/auth/           Argon2id, tokens (llk_…), login lockout, rate limit
 packaging/               Package config, systemd unit, sysusers, install scripts, install test
+tools/gendocs/           Generates docs/configuration.md, docs/config.schema.json, docs/llms-full.txt
+docs/, examples/         User docs, ADRs, API guide; runnable API examples
 ```
 
 ## Rules that must not be broken
@@ -34,7 +36,8 @@ packaging/               Package config, systemd unit, sysusers, install scripts
 - **Credentials** (communities, v3 passwords) are stored AES-GCM encrypted in the database only – never
   in logs, the audit log, API responses or pre-filled forms.
 - Hostnames and `ifAlias` come from the network: always escape, no inline JS/CSS (CSP).
-- No change to API, config or data model without matching docs (`openapi.yaml`, `PROJECT_PLAN.md`).
+- No change to API, config or data model without matching docs (`openapi.yaml`, `docs/`, `PROJECT_PLAN.md`).
+  Configuration docs and `docs/llms-full.txt` are generated: run `go run ./tools/gendocs` (a test checks it).
 
 ## Commands
 

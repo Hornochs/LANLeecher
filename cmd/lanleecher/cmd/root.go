@@ -115,7 +115,7 @@ func open(ctx context.Context) (*env, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := store.Open(store.Options{Type: cfg.Storage.Type, Path: cfg.ResolvePath(cfg.Storage.Path), URL: cfg.Storage.URL})
+	db, err := store.Open(store.Options{Path: cfg.ResolvePath(cfg.Storage.Path)})
 	if err != nil {
 		return nil, err
 	}

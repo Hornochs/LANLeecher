@@ -17,7 +17,6 @@ trusted_proxies: [127.0.0.1, "::1"]
 secret_key_file: /etc/lanleecher/secret.key
 
 storage:
-  type: sqlite
   path: /var/lib/lanleecher/lanleecher.db
 
 log:

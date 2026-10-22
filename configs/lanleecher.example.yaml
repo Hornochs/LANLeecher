@@ -16,9 +16,7 @@ trusted_proxies: [127.0.0.1, "::1"]
 secret_key_file: secret.key
 
 storage:
-  type: sqlite                # sqlite or postgres
-  path: data/lanleecher.db    # sqlite only
-  # url: postgres://lanleecher:secret@localhost/lanleecher?sslmode=disable
+  path: data/lanleecher.db    # SQLite database file
 
 log:
   level: info                 # debug, info, warn, error

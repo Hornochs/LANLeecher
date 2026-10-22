@@ -95,7 +95,7 @@ var backupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		db, err := store.Open(store.Options{Type: cfg.Storage.Type, Path: cfg.ResolvePath(cfg.Storage.Path)})
+		db, err := store.Open(store.Options{Path: cfg.ResolvePath(cfg.Storage.Path)})
 		if err != nil {
 			return err
 		}

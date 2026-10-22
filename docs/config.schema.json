@@ -1,0 +1,230 @@
+{
+  "$id": "https://github.com/lan-dot-party/LANLeecher/blob/main/docs/config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "api": {
+      "additionalProperties": false,
+      "description": "Configures the REST API.",
+      "properties": {
+        "metrics_enabled": {
+          "default": true,
+          "description": "Serves Prometheus metrics at /api/v1/metrics.",
+          "type": "boolean"
+        },
+        "rate_burst": {
+          "default": 30,
+          "description": "The number of requests a token may send at once.",
+          "type": "integer"
+        },
+        "rate_limit": {
+          "default": 10,
+          "description": "The sustained number of API requests per second per token or logged-in user.",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "board": {
+      "additionalProperties": false,
+      "description": "Configures the beamer view.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Turns on the beamer view at /board.",
+          "type": "boolean"
+        },
+        "public": {
+          "default": false,
+          "description": "Makes /board and the board API reachable without login or token.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "listen": {
+      "default": "127.0.0.1:9040",
+      "description": "The HTTP listen address, e.g. \"127.0.0.1:9040\".",
+      "type": "string"
+    },
+    "log": {
+      "additionalProperties": false,
+      "description": "Configures logging.",
+      "properties": {
+        "format": {
+          "default": "text",
+          "description": "The log output format.",
+          "enum": [
+            "text",
+            "json"
+          ],
+          "type": "string"
+        },
+        "level": {
+          "default": "info",
+          "description": "The minimum log level.",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "polling": {
+      "additionalProperties": false,
+      "description": "Holds the polling defaults for switches.",
+      "properties": {
+        "fdb_interval": {
+          "default": "1m",
+          "description": "The time between two reads of a switch's forwarding table (MAC → port). It is never shorter than polling.interval.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "interval": {
+          "default": "30s",
+          "description": "The time between two counter polls of a switch. Switches can override it.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "retries": {
+          "default": 1,
+          "description": "The number of retries of a single SNMP request.",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": "3s",
+          "description": "The timeout of a single SNMP request.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "uplink_mac_threshold": {
+          "default": 10,
+          "description": "Marks ports with more MACs than this as \"probably uplink\".",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "public_url": {
+      "default": "http://127.0.0.1:9040",
+      "description": "The externally visible base URL. If it starts with https://, session cookies are marked Secure.",
+      "type": "string"
+    },
+    "resolver": {
+      "additionalProperties": false,
+      "description": "Configures IP and hostname discovery.",
+      "properties": {
+        "hostname_priority": {
+          "default": [
+            "dhcp",
+            "netbios",
+            "mdns",
+            "llmnr",
+            "dns-ptr"
+          ],
+          "description": "Ranks hostname sources when choosing the displayed name; earlier sources win.",
+          "items": {
+            "enum": [
+              "dhcp",
+              "netbios",
+              "mdns",
+              "llmnr",
+              "dns-ptr"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "order": {
+          "default": [
+            "snmp-arp",
+            "local-neigh",
+            "netbios",
+            "mdns",
+            "dns-ptr"
+          ],
+          "description": "Lists the enabled resolvers. An empty list turns IP and hostname discovery off.",
+          "items": {
+            "enum": [
+              "snmp-arp",
+              "local-neigh",
+              "netbios",
+              "mdns",
+              "llmnr",
+              "dns-ptr"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "probe_interval": {
+          "default": "10m",
+          "description": "How often NetBIOS, mDNS, LLMNR and DNS are asked again for the name of each active IP. New IPs are probed immediately.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "probe_rate": {
+          "default": 20,
+          "description": "The maximum number of name queries per second.",
+          "type": "integer"
+        },
+        "probe_timeout": {
+          "default": "1s",
+          "description": "The timeout of a single NetBIOS, mDNS or LLMNR query.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "secret_key_file": {
+      "default": "secret.key",
+      "description": "The file with the AES-256 key that encrypts credentials in the database (64 hex characters). It is created if missing.",
+      "type": "string"
+    },
+    "storage": {
+      "additionalProperties": false,
+      "description": "Configures the SQLite database.",
+      "properties": {
+        "path": {
+          "default": "data/lanleecher.db",
+          "description": "The SQLite database file. Its directory is created if missing.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "tls": {
+      "additionalProperties": false,
+      "description": "Enables the built-in TLS listener; usually a reverse proxy does this.",
+      "properties": {
+        "cert_file": {
+          "description": "The PEM certificate (chain). Set together with tls.key_file.",
+          "type": "string"
+        },
+        "key_file": {
+          "description": "The PEM private key.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "trusted_proxies": {
+      "default": [
+        "127.0.0.1",
+        "::1"
+      ],
+      "description": "The proxy IPs or networks whose X-Real-IP / X-Forwarded-For headers are trusted for client IPs (rate limits, audit log).",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "title": "LANLeecher config.yaml",
+  "type": "object"
+}

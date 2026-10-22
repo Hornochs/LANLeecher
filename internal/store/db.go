@@ -1,8 +1,5 @@
-// Package store persists LANLeecher data.
-//
-// SQLite (pure Go, no CGO) is the default backend. The SQL is kept portable
-// (ON CONFLICT upserts, integer timestamps) so that a PostgreSQL dialect can
-// be added without touching callers.
+// Package store persists LANLeecher data in SQLite (pure Go, no CGO).
+// SQLite runs in WAL mode; Backup creates consistent copies while running.
 package store
 
 import (
@@ -36,20 +33,12 @@ type DB struct {
 
 // Options for Open.
 type Options struct {
-	Type string // sqlite or postgres
-	Path string // SQLite file
-	URL  string // PostgreSQL URL
+	// Path is the SQLite database file; its directory is created if missing.
+	Path string
 }
 
 // Open connects to the database. It does not run migrations.
 func Open(opts Options) (*DB, error) {
-	switch opts.Type {
-	case "", "sqlite":
-	case "postgres":
-		return nil, errors.New("storage.type postgres is not implemented yet; use sqlite")
-	default:
-		return nil, fmt.Errorf("unknown storage type %q", opts.Type)
-	}
 	if err := os.MkdirAll(filepath.Dir(opts.Path), 0o750); err != nil {
 		return nil, fmt.Errorf("create data directory: %w", err)
 	}

@@ -85,7 +85,7 @@ func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return "–"
 	}
-	return t.Local().Format("02.01.2006 15:04")
+	return t.Local().Format("2006-01-02 15:04")
 }
 
 func formatTimeInput(t time.Time) string {
@@ -150,9 +150,14 @@ func lineChart(buckets []store.Bucket) template.HTML {
 	for _, b := range buckets {
 		i := int(b.Start.Sub(start) / store.BucketSize)
 		if i >= 0 && i < steps {
-			// bit/s average over the bucket
-			down[i] = float64(b.BytesDown) * 8 / store.BucketSize.Seconds()
-			up[i] = float64(b.BytesUp) * 8 / store.BucketSize.Seconds()
+			// bit/s average over the bucket; the bucket that is still running
+			// is averaged over the time that has passed, not five minutes.
+			secs := store.BucketSize.Seconds()
+			if el := time.Since(b.Start).Seconds(); el < secs {
+				secs = math.Max(el, 1)
+			}
+			down[i] = float64(b.BytesDown) * 8 / secs
+			up[i] = float64(b.BytesUp) * 8 / secs
 		}
 	}
 	maxV := 1.0
@@ -209,8 +214,8 @@ func eventBars(rows []store.DeviceEventTotal) template.HTML {
 		n = 20
 	}
 	const h, padB, padT = 200.0, 40.0, 10.0
-	slot := 60.0
-	w := math.Max(300, slot*float64(n)+20)
+	slot := 96.0
+	w := math.Max(640, slot*float64(n)+20)
 	var maxV int64 = 1
 	for _, r := range rows {
 		maxV = max(maxV, r.BytesDown, r.BytesUp)
@@ -219,7 +224,7 @@ func eventBars(rows []store.DeviceEventTotal) template.HTML {
 	fmt.Fprintf(&b, `<svg class="chart" viewBox="0 0 %.0f %.0f" role="img" aria-label="Traffic per event">`, w, h)
 	for i := 0; i < n; i++ {
 		r := rows[n-1-i]
-		x0 := 10 + float64(i)*slot
+		x0 := 10 + float64(i)*slot + (slot-44)/2
 		for j, v := range []int64{r.BytesDown, r.BytesUp} {
 			bh := (h - padT - padB) * float64(v) / float64(maxV)
 			class := "bar-down"
@@ -230,13 +235,13 @@ func eventBars(rows []store.DeviceEventTotal) template.HTML {
 				class, x0+float64(j)*22, h-padB-bh, bh, template.HTMLEscapeString(formatBytes(v)))
 		}
 		name := r.Event.Name
-		if len([]rune(name)) > 9 {
-			name = string([]rune(name)[:8]) + "…"
+		if len([]rune(name)) > 14 {
+			name = string([]rune(name)[:13]) + "…"
 		}
 		fmt.Fprintf(&b, `<text class="axis" x="%.1f" y="%.0f" text-anchor="middle">%s</text>`, x0+21, h-padB+14,
 			template.HTMLEscapeString(name))
 		fmt.Fprintf(&b, `<text class="axis" x="%.1f" y="%.0f" text-anchor="middle">%s</text>`, x0+21, h-padB+28,
-			r.Event.StartedAt.Local().Format("01/06"))
+			r.Event.StartedAt.Local().Format("2006-01"))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

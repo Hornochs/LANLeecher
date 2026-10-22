@@ -7,8 +7,8 @@
 <table class="kv">
   <tr><th>{{$.T "settings.public_url"}}</th><td><code>{{.Cfg.PublicURL}}</code>{{if .Cfg.SecureCookies}} <span class="badge">Secure-Cookie</span>{{end}}</td></tr>
   <tr><th>Listen</th><td><code>{{.Cfg.Listen}}</code></td></tr>
-  <tr><th>{{$.T "settings.storage"}}</th><td><code>{{.Cfg.Storage.Type}}</code> {{.StoragePath}} · Schema v{{.SchemaVersion}}</td></tr>
-  <tr><th>{{$.T "settings.polling"}}</th><td>{{.Cfg.Polling.Interval}} · FDB {{.Cfg.Polling.FDBInterval}} · Timeout {{.Cfg.Polling.Timeout}} · Uplink ab {{.Cfg.Polling.UplinkMACThreshold}} MACs</td></tr>
+  <tr><th>{{$.T "settings.storage"}}</th><td>SQLite <code>{{.StoragePath}}</code> · Schema v{{.SchemaVersion}}</td></tr>
+  <tr><th>{{$.T "settings.polling"}}</th><td>{{.Cfg.Polling.Interval}} · FDB {{.Cfg.Polling.FDBInterval}} · Timeout {{.Cfg.Polling.Timeout}} · uplink · Uplink ab {{.Cfg.Polling.UplinkMACThreshold}} MACsgt; {{.Cfg.Polling.UplinkMACThreshold}} MACs</td></tr>
   <tr><th>{{$.T "settings.resolver_order"}}</th><td>{{range $i, $r := .Cfg.Resolver.Order}}{{if $i}} → {{end}}<code>{{$r}}</code>{{end}}</td></tr>
   <tr><th>{{$.T "settings.hostname_priority"}}</th><td>{{range $i, $r := .Cfg.Resolver.HostnamePriority}}{{if $i}} › {{end}}<code>{{$r}}</code>{{end}}</td></tr>
   <tr><th>{{$.T "settings.probes"}}</th><td>{{.Cfg.Resolver.ProbeInterval}} · {{.Cfg.Resolver.ProbeRate}}/s · Timeout {{.Cfg.Resolver.ProbeTimeout}}</td></tr>

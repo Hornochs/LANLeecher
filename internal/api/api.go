@@ -44,6 +44,7 @@ func (a *API) routesForSpec() chi.Router { return a.routes(true) }
 
 func (a *API) routes(metrics bool) chi.Router {
 	r := chi.NewRouter()
+	r.Use(boardCORS)
 	r.Get("/", a.docs)
 	r.Get("/openapi.json", a.openAPIJSON)
 	r.Get("/openapi.yaml", a.openAPIYAML)
@@ -187,6 +188,29 @@ func (a *API) boardAuth(next http.Handler) http.Handler {
 			return
 		}
 		scoped.ServeHTTP(w, r)
+	})
+}
+
+// boardCORS lets overlays loaded from another origin (an OBS browser source
+// with a local HTML file) read the board with a bearer token. Only the board
+// endpoints are opened; they never contain MACs or IPs, and no cookies are
+// accepted cross-origin because no credentials mode is allowed.
+func boardCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/board") && !strings.HasPrefix(r.URL.Path, "/api/v1/board") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", "*")
+		h.Set("Access-Control-Allow-Headers", "Authorization")
+		h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		h.Set("Access-Control-Max-Age", "3600")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

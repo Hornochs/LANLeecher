@@ -13,6 +13,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/spf13/cobra"
 
+	"github.com/lan-dot-party/lanleecher"
+
 	"github.com/lan-dot-party/lanleecher/internal/api"
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/board"
@@ -64,7 +66,7 @@ var serverCmd = &cobra.Command{
 		})
 		r.Get("/llms.txt", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.Write([]byte(llmsTxt))
+			w.Write([]byte(lanleecher.LLMsTxt))
 		})
 		r.Mount("/api", apiHandler.Routes())
 		r.With(a.SessionMiddleware).Mount("/", ui.Routes())
@@ -113,27 +115,3 @@ var serverCmd = &cobra.Command{
 		return srv.Shutdown(shutdownCtx)
 	},
 }
-
-const llmsTxt = `# LANLeecher
-
-> Counts download and upload per client (MAC address) for each LAN party event via SNMP from the
-> switches, and serves rankings through a web UI and a REST API.
-
-Key concepts:
-- Event: a LAN party. Traffic is only booked while an event is running; at most one is active.
-- Device: one or more MACs (merged by an admin) that belong to one machine.
-- Port group: a switch port with several clients (small switch); one shared ranking entry.
-- Port roles: client, multi-client, server (hidden by default), uplink (never attributed to a MAC).
-- Hidden: ports/devices are always counted; hiding only removes them from rankings.
-- Direction: bytes_down = to the client (ifHCOutOctets of the port), bytes_up = from the client (ifHCInOctets).
-- Only deltas between polls are stored; a counter reset on a switch never reduces a total.
-
-Units: bytes as integers, throughput in bit/s, timestamps RFC 3339 UTC, MACs as aa:bb:cc:dd:ee:ff.
-Auth: Authorization: Bearer llk_... with scopes read:rankings, read:clients, write:events, read:board.
-Errors: application/problem+json (RFC 9457) with a stable "code".
-
-- [OpenAPI spec (JSON)](/api/openapi.json): single source of truth for the API
-- [API docs](/api/)
-- [Top downloaders](/api/v1/rankings/download?limit=10)
-- [Beamer data](/api/v1/board)
-`
