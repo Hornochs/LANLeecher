@@ -1,0 +1,105 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{$.T "device.title"}} #{{.Device.ID}}</p>
+    <h1>{{.Label.Name}} {{if .Device.Hidden}}<span class="badge badge-muted">{{$.T "label.hidden"}}</span>{{end}}</h1>
+    <p class="muted">{{if .Label.Hostname}}{{.Label.Hostname}} · {{end}}{{if .Label.IP}}{{.Label.IP}} · {{end}}
+      {{range $i, $m := .Device.MACs}}{{if $i}}, {{end}}<code>{{$m.MAC}}</code>{{if $m.Vendor}} <span class="small">({{$m.Vendor}})</span>{{end}}{{if localmac $m.MAC}} <span class="badge badge-muted" title="{{$.T "device.local_mac_hint"}}">{{$.T "device.local_mac"}}</span>{{end}}{{end}}</p>
+  </div>
+</div>
+
+<div class="stats card">
+  <div class="stat"><span class="stat-label">{{$.T "device.total_down"}}</span><span class="stat-value down">{{bytes .TotalDown}}</span></div>
+  <div class="stat"><span class="stat-label">{{$.T "device.total_up"}}</span><span class="stat-value up">{{bytes .TotalUp}}</span></div>
+  <div class="stat"><span class="stat-label">{{$.T "nav.events"}}</span><span class="stat-value">{{len .Events}}</span></div>
+</div>
+
+{{if .Suggestions}}
+<section class="card notice">
+  <h3>{{$.T "merges.title"}}</h3>
+  {{range .Suggestions}}
+  <div class="merge">
+    <span>{{$.T "merges.same_device"}}: <code>{{.MACA}}</code> ↔ <code>{{.MACB}}</code> <span class="muted small">({{.Reason}})</span></span>
+    {{if $.Can "operator"}}
+    <form method="post" action="/merges/{{.ID}}" class="inline">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="back" value="/devices/{{$.Data.Device.ID}}">
+      <button name="decision" value="accept" class="primary">{{$.T "merges.accept"}}</button>
+      <button name="decision" value="reject">{{$.T "merges.reject"}}</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+<div class="grid-2">
+  <section class="card">
+    <h3>{{$.T "device.per_event"}}</h3>
+    {{if .Events}}
+    {{bars .Events}}{{template "legend" $}}
+    <table>
+      <thead><tr><th>{{$.T "col.event"}}</th><th class="num">{{$.T "col.down"}}</th><th class="num">{{$.T "col.up"}}</th><th class="num">{{$.T "col.total"}}</th><th class="num">{{$.T "col.ratio"}}</th></tr></thead>
+      <tbody>
+      {{range .Events}}
+      <tr><td><a href="/devices/{{$.Data.Device.ID}}?event={{.Event.Slug}}">{{.Event.Name}}</a> <span class="muted small">{{dt .Event.StartedAt}}</span></td>
+        <td class="num">{{bytes .BytesDown}}</td><td class="num">{{bytes .BytesUp}}</td>
+        <td class="num">{{bytes (add .BytesDown .BytesUp)}}</td><td class="num">{{ratio .BytesDown .BytesUp}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    {{else}}<p class="muted">{{$.T "device.no_traffic"}}</p>{{end}}
+  </section>
+  <section class="card">
+    <h3>{{$.T "device.timeline"}}{{if .ChartEvent}}: {{.ChartEvent.Name}}{{end}}</h3>
+    {{if .Chart}}{{.Chart}}{{template "legend" $}}{{else}}<p class="muted">{{$.T "device.no_traffic"}}</p>{{end}}
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h3>{{$.T "device.hostnames"}}</h3>
+    <table><thead><tr><th>{{$.T "col.hostname"}}</th><th>{{$.T "col.source"}}</th><th>MAC</th><th>{{$.T "col.first_seen"}}</th><th>{{$.T "col.last_seen"}}</th></tr></thead><tbody>
+    {{range .Hostnames}}<tr><td>{{.Value}}</td><td><span class="badge">{{.Source}}</span></td><td><code>{{.MAC}}</code></td><td>{{dt .FirstSeen}}</td><td>{{dt .LastSeen}}</td></tr>
+    {{else}}<tr><td colspan="5" class="muted">{{$.T "device.none"}}</td></tr>{{end}}
+    </tbody></table>
+  </section>
+  <section class="card">
+    <h3>{{$.T "device.ips"}}</h3>
+    <table><thead><tr><th>IP</th><th>{{$.T "col.source"}}</th><th>MAC</th><th>{{$.T "col.first_seen"}}</th><th>{{$.T "col.last_seen"}}</th></tr></thead><tbody>
+    {{range .IPs}}<tr><td>{{.Value}}</td><td><span class="badge">{{.Source}}</span></td><td><code>{{.MAC}}</code></td><td>{{dt .FirstSeen}}</td><td>{{dt .LastSeen}}</td></tr>
+    {{else}}<tr><td colspan="5" class="muted">{{$.T "device.none"}}</td></tr>{{end}}
+    </tbody></table>
+  </section>
+</div>
+
+<section class="card">
+  <h3>{{$.T "device.ports"}}</h3>
+  <table><thead><tr><th>{{$.T "col.port"}}</th><th>MAC</th><th>VLAN</th><th>{{$.T "col.first_seen"}}</th><th>{{$.T "col.last_seen"}}</th></tr></thead><tbody>
+  {{range .Locations}}<tr><td>{{.PortName}}</td><td><code>{{.MAC}}</code></td><td>{{if .VLAN}}{{.VLAN}}{{end}}</td><td>{{dt .FirstSeen}}</td><td>{{dt .LastSeen}}</td></tr>
+  {{else}}<tr><td colspan="5" class="muted">{{$.T "device.none"}}</td></tr>{{end}}
+  </tbody></table>
+</section>
+
+{{if $.Can "operator"}}
+<section class="card">
+  <h3>{{$.T "device.settings"}}</h3>
+  <form method="post" action="/devices/{{.Device.ID}}" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>{{$.T "device.display_name"}}<input name="display_name" value="{{.Device.DisplayName}}" maxlength="80" placeholder="{{.Label.Hostname}}"></label>
+    <label>{{$.T "device.notes"}}<input name="notes" value="{{.Device.Notes}}" maxlength="500"></label>
+    <label class="check"><input type="checkbox" name="hidden" value="1"{{if .Device.Hidden}} checked{{end}}> {{$.T "device.hide"}}</label>
+    <button type="submit" class="primary">{{$.T "action.save"}}</button>
+  </form>
+  {{if gt (len .Device.MACs) 1}}
+  <h4>{{$.T "device.split"}}</h4>
+  <form method="post" action="/devices/{{.Device.ID}}/split" class="inline" data-confirm="{{$.T "device.split_confirm"}}">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <select name="mac">{{range .Device.MACs}}<option value="{{.MAC}}">{{.MAC}}</option>{{end}}</select>
+    <button type="submit">{{$.T "device.split_button"}}</button>
+  </form>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+{{end}}

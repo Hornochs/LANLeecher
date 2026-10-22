@@ -1,0 +1,55 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{$.T "col.event"}} {{if .Event.Active}}<span class="badge badge-live">{{$.T "events.running"}}</span>{{end}}</p>
+    <h1>{{.Event.Name}}</h1>
+    <p class="muted">{{dt .Event.StartedAt}} – {{if .Event.EndedAt}}{{dt (deref .Event.EndedAt)}}{{else}}{{$.T "events.running"}}{{end}}{{if .Event.Notes}} · {{.Event.Notes}}{{end}}</p>
+  </div>
+  <div class="actions">
+    <a class="button" href="/events/{{.Event.Slug}}/export.csv">CSV</a>
+    <a class="button" href="/events/{{.Event.Slug}}/export.json">JSON</a>
+    <a class="button" href="/rankings?event={{.Event.Slug}}">{{$.T "nav.rankings"}}</a>
+  </div>
+</div>
+<div class="stats card">
+  <div class="stat"><span class="stat-label">{{$.T "col.down"}}</span><span class="stat-value down">{{bytes .Summary.BytesDown}}</span></div>
+  <div class="stat"><span class="stat-label">{{$.T "col.up"}}</span><span class="stat-value up">{{bytes .Summary.BytesUp}}</span></div>
+  <div class="stat"><span class="stat-label">{{$.T "dashboard.clients"}}</span><span class="stat-value">{{.Summary.Clients}}</span></div>
+</div>
+{{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}</section>{{end}}
+<div class="grid-2">
+  <section class="card"><h3>{{$.T "dashboard.top_down"}}</h3>{{template "ranking_rows" .TopDown}}</section>
+  <section class="card"><h3>{{$.T "dashboard.top_up"}}</h3>{{template "ranking_rows" .TopUp}}</section>
+</div>
+<section class="card">
+  <h3>{{$.T "event.ports"}}</h3>
+  <p class="muted small">{{$.T "event.ports_hint"}}</p>
+  <table>
+    <thead><tr><th>{{$.T "col.port"}}</th><th>{{$.T "col.role"}}</th><th class="num">{{$.T "col.down"}}</th><th class="num">{{$.T "col.up"}}</th><th class="num">{{$.T "event.unassigned"}}</th></tr></thead>
+    <tbody>
+    {{range .Ports}}
+    <tr{{if .Port.Hidden}} class="hidden-row"{{end}}>
+      <td><a href="/switches/{{.Port.SwitchID}}">{{.Port.SwitchName}}</a> {{.Port.ShortName}}{{if .Port.Label}} <span class="muted">· {{.Port.Label}}</span>{{end}}
+        {{if .Port.Hidden}}<span class="badge badge-muted">{{$.T "label.hidden"}}</span>{{end}}</td>
+      <td><span class="badge role-{{.Port.Role}}">{{$.T (print "role." .Port.Role)}}</span></td>
+      <td class="num">{{bytes .BytesDown}}</td><td class="num">{{bytes .BytesUp}}</td>
+      <td class="num">{{if or .UnassignedDown .UnassignedUp}}{{bytes (add .UnassignedDown .UnassignedUp)}}{{else}}–{{end}}</td>
+    </tr>
+    {{else}}<tr><td colspan="5" class="muted">{{$.T "rankings.empty"}}</td></tr>{{end}}
+    </tbody>
+  </table>
+</section>
+{{if $.Can "operator"}}
+<section class="card">
+  <h3>{{$.T "action.edit"}}</h3>
+  <form method="post" action="/events/{{.Event.Slug}}" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>{{$.T "events.name"}}<input name="name" value="{{.Event.Name}}" required maxlength="100"></label>
+    <label>{{$.T "events.notes"}}<input name="notes" value="{{.Event.Notes}}" maxlength="500"></label>
+    <button type="submit" class="primary">{{$.T "action.save"}}</button>
+  </form>
+</section>
+{{end}}
+{{end}}
+{{end}}

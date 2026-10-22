@@ -1,0 +1,30 @@
+{{define "content"}}
+<div class="page-head">
+  <h1>{{.T "nav.switches"}}</h1>
+  {{if .Can "admin"}}<a class="button primary" href="/switches/new">{{.T "switches.add"}}</a>{{end}}
+</div>
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>Host</th><th>SNMP</th><th>{{.T "switches.system"}}</th><th class="num">{{.T "switches.ports"}}</th><th>{{.T "switches.last_poll"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Rows}}
+  <tr>
+    <td><span class="dot {{if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span>
+      <a href="/switches/{{.Switch.ID}}">{{.Switch.Name}}</a>{{if .Switch.ARPSource}} <span class="badge">ARP</span>{{end}}</td>
+    <td><code>{{.Switch.Host}}{{if ne .Switch.Port 161}}:{{.Switch.Port}}{{end}}</code></td>
+    <td>{{.Switch.SNMPVersion}}</td>
+    <td class="small">{{.Switch.SysName}}<br><span class="muted">{{.Switch.SysDescr}}</span></td>
+    <td class="num">{{.Ports}}{{if .Suspects}} <span class="badge badge-warn" title="{{$.T "ports.uplink_suspect"}}">{{.Suspects}} ⚠</span>{{end}}</td>
+    <td>{{if .Switch.LastPollAt}}{{ago (deref .Switch.LastPollAt)}}{{if .Status.Running}} <span class="muted small">({{dur .Status.LastDuration}})</span>{{end}}{{else}}{{$.T "switches.never"}}{{end}}
+      {{if and .Switch.Enabled (not .Switch.LastPollOK) .Switch.LastError}}<br><span class="error small">{{.Switch.LastError}}</span>{{end}}
+      {{if not .Switch.Enabled}}<span class="badge badge-muted">{{$.T "switches.disabled"}}</span>{{end}}</td>
+    <td>{{if $.Can "admin"}}<a href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="7" class="muted">{{$.T "switches.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+<p class="muted small">{{.T "switches.uplink_hint"}}</p>
+{{end}}

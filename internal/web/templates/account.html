@@ -1,0 +1,33 @@
+{{define "content"}}
+<h1>{{.T "account.title"}}: {{.User.Username}}</h1>
+<p class="muted">{{.T "col.role"}}: {{.T (print "urole." .User.Role)}}</p>
+<div class="grid-2">
+<section class="card">
+  <h3>{{.T "account.password"}}</h3>
+  <form method="post" action="/account/password" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>{{.T "account.current"}}<input type="password" name="current" required autocomplete="current-password"></label>
+    <label>{{.T "users.new_password"}}<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+    <button type="submit" class="primary">{{.T "action.save"}}</button>
+  </form>
+</section>
+<section class="card">
+  <h3>{{.T "account.theme"}}</h3>
+  <form method="post" action="/account/theme" class="inline">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <input type="hidden" name="back" value="/account?ok=saved">
+    <select name="theme">{{range themes}}<option value="{{.}}"{{if eq . $.Theme}} selected{{end}}>{{$.T (print "theme." .)}}</option>{{end}}</select>
+    <button type="submit">{{.T "action.save"}}</button>
+  </form>
+  <p class="muted small">{{.T "account.theme_hint"}}</p>
+</section>
+<section class="card">
+  <h3>{{.T "account.language"}}</h3>
+  <form method="post" action="/account/language" class="inline">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <select name="language"><option value="de"{{if eq .Lang "de"}} selected{{end}}>Deutsch</option><option value="en"{{if eq .Lang "en"}} selected{{end}}>English</option></select>
+    <button type="submit">{{.T "action.save"}}</button>
+  </form>
+</section>
+</div>
+{{end}}

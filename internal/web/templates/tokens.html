@@ -1,0 +1,49 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "admin.tokens"}}</h1>
+{{with .Data.NewToken}}
+<section class="card notice">
+  <h3>{{$.T "tokens.created"}}</h3>
+  <p>{{$.T "tokens.once"}}</p>
+  <pre class="token"><code id="new-token">{{.}}</code></pre>
+  <button type="button" data-copy="new-token">{{$.T "tokens.copy"}}</button>
+</section>
+{{end}}
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>Token</th><th>Scopes</th><th>{{.T "tokens.allowed_ips"}}</th><th>{{.T "col.created"}}</th><th>{{.T "tokens.expires"}}</th><th>{{.T "tokens.last_used"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Tokens}}
+  <tr{{if .Revoked}} class="hidden-row"{{end}}>
+    <td>{{.Name}}{{if .Revoked}} <span class="badge badge-muted">{{$.T "tokens.revoked"}}</span>{{end}}</td>
+    <td><code>{{.Prefix}}…</code></td>
+    <td>{{range .Scopes}}<span class="badge">{{.}}</span> {{end}}</td>
+    <td class="small">{{range .AllowedIPs}}{{.}} {{else}}<span class="muted">{{$.T "tokens.any_ip"}}</span>{{end}}</td>
+    <td>{{dt .CreatedAt}}</td>
+    <td>{{if .ExpiresAt}}{{dt (deref .ExpiresAt)}}{{else}}–{{end}}</td>
+    <td>{{if .LastUsed}}{{ago (deref .LastUsed)}}{{else}}–{{end}}</td>
+    <td>{{if not .Revoked}}
+      <form method="post" action="/admin/tokens/{{.ID}}/revoke" data-confirm="{{$.T "tokens.revoke_confirm"}}">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button type="submit" class="danger">{{$.T "tokens.revoke"}}</button>
+      </form>{{end}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="8" class="muted">{{$.T "tokens.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+<section class="card">
+  <h3>{{.T "tokens.create"}}</h3>
+  <form method="post" action="/admin/tokens" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>{{.T "col.name"}}<input name="name" required maxlength="60" placeholder="Discord bot"></label>
+    <fieldset><legend>Scopes</legend>
+      {{range .Data.Scopes}}<label class="check"><input type="checkbox" name="scopes" value="{{.}}"> <code>{{.}}</code> <span class="muted small">{{$.T (print "scope." .)}}</span></label>{{end}}
+    </fieldset>
+    <label>{{.T "tokens.expires_days"}}<input type="number" name="expires_days" min="0" max="3650" value="0"></label>
+    <label>{{.T "tokens.allowed_ips"}}<input name="allowed_ips" placeholder="10.0.0.0/24 192.168.1.5"></label>
+    <button type="submit" class="primary">{{.T "tokens.create"}}</button>
+  </form>
+</section>
+{{end}}

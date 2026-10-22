@@ -1,0 +1,19 @@
+# LANLeecher with Docker Compose.
+#
+#   docker compose up -d
+#   docker compose exec lanleecher lanleecher user create admin --role admin
+#
+# Host networking lets the resolvers reach clients via NetBIOS/mDNS and read
+# the host's neighbor table; SNMP to the switches works either way.
+services:
+  lanleecher:
+    image: ghcr.io/lan-dot-party/lanleecher:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - lanleecher-data:/var/lib/lanleecher
+      # Optional: own configuration
+      # - ./config.yaml:/etc/lanleecher/config.yaml:ro
+
+volumes:
+  lanleecher-data:

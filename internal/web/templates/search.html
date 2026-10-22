@@ -1,0 +1,25 @@
+{{define "content"}}
+<h1>{{.T "nav.search"}}</h1>
+<form method="get" action="/search" class="card filters">
+  <input type="search" name="q" value="{{.Data.Q}}" placeholder="{{.T "search.placeholder"}}" autofocus>
+  <button type="submit" class="primary">{{.T "nav.search"}}</button>
+</form>
+{{if .Data.Q}}
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>MAC</th><th>{{.T "col.vendor"}}</th><th>IP</th><th>{{.T "col.hostname"}}</th><th>{{.T "col.last_seen"}}</th><th>{{.T "search.match"}}</th></tr></thead>
+  <tbody>
+  {{range .Data.Hits}}
+  <tr>
+    <td><a href="/devices/{{.DeviceID}}">{{.Name}}</a></td>
+    <td><code>{{.MAC}}</code></td><td class="small">{{.Vendor}}</td><td>{{.IP}}</td><td>{{.Hostname}}</td>
+    <td>{{dt .LastSeen}}</td><td><span class="badge">{{.Match}}</span></td>
+  </tr>
+  {{else}}
+  <tr><td colspan="7" class="muted">{{$.T "search.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}
+{{end}}

@@ -1,0 +1,32 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<div class="page-head">
+  <h1>{{.T "admin.dhcp"}}</h1>
+  <a class="button primary" href="/admin/dhcp/new">{{.T "dhcp.add"}}</a>
+</div>
+<p class="muted">{{.T "dhcp.intro"}}</p>
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>URL</th><th>{{.T "dhcp.kind"}}</th><th>{{.T "dhcp.version"}}</th>
+    <th class="num">{{.T "dhcp.leases"}}</th><th>{{.T "switches.last_poll"}}</th></tr></thead>
+  <tbody>
+  {{range .Data.Sources}}
+  <tr>
+    <td><span class="dot {{if not .Enabled}}dot-off{{else if and .LastPollOK (not .CertProblem)}}dot-ok{{else}}dot-err{{end}}"></span>
+      <a href="/admin/dhcp/{{.ID}}">{{.Name}}</a>
+      {{if .CertProblem}}<span class="badge badge-warn">{{$.T (print "dhcp.cert_" .CertProblem)}}</span>{{end}}
+      {{if .InsecureSkipVerify}}<span class="badge badge-warn">{{$.T "dhcp.insecure_badge"}}</span>{{end}}</td>
+    <td><code>{{.URL}}</code></td>
+    <td>{{$.T (print "dhcp.kind_" .Kind)}}</td>
+    <td>{{.KeaVersion}}</td>
+    <td class="num">{{.LeaseCount}}</td>
+    <td>{{if .LastPollAt}}{{ago (deref .LastPollAt)}}{{else}}{{$.T "switches.never"}}{{end}}
+      {{if and .Enabled (not .LastPollOK) .LastError}}<br><span class="error small">{{.LastError}}</span>{{end}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="6" class="muted">{{$.T "dhcp.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}

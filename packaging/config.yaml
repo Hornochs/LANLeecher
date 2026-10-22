@@ -1,0 +1,47 @@
+# LANLeecher configuration (package installation)
+# Switches, ports, users and API tokens live in the database and are
+# managed in the web UI. After changes:
+#   sudo systemctl restart lanleecher
+
+# HTTP listen address. Behind a reverse proxy (recommended), bind to
+# localhost only; otherwise e.g. 0.0.0.0:9040.
+listen: 127.0.0.1:9040
+
+# Public URL. With https://, session cookies are marked Secure.
+public_url: http://127.0.0.1:9040
+
+# Proxies whose X-Real-IP/X-Forwarded-For headers are trusted.
+trusted_proxies: [127.0.0.1, "::1"]
+
+# AES-256 key for credentials in the database (created by the package).
+secret_key_file: /etc/lanleecher/secret.key
+
+storage:
+  path: /var/lib/lanleecher/lanleecher.db
+
+log:
+  level: info                 # debug, info, warn, error
+  format: text                # text or json
+
+polling:
+  interval: 30s
+  fdb_interval: 60s
+  timeout: 3s
+  retries: 1
+  uplink_mac_threshold: 10
+
+resolver:
+  order: [snmp-arp, local-neigh, netbios, mdns, dns-ptr]
+  hostname_priority: [dhcp, netbios, mdns, llmnr, dns-ptr]
+  probe_interval: 10m
+  probe_rate: 20
+  probe_timeout: 1s
+
+board:
+  enabled: false              # beamer view at /board
+  public: false               # reachable without login or token
+
+api:
+  metrics_enabled: true
+  rate_limit: 10
+  rate_burst: 30

@@ -1,0 +1,54 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+{{with .Data}}
+<h1>{{if .Source.ID}}{{$.T "dhcp.edit"}}: {{.Source.Name}}{{else}}{{$.T "dhcp.add"}}{{end}}</h1>
+<form method="post" action="{{if .Source.ID}}/admin/dhcp/{{.Source.ID}}{{else}}/admin/dhcp{{end}}" class="card form-grid">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label>{{$.T "col.name"}}<input name="name" value="{{.Source.Name}}" required maxlength="60" placeholder="Kea"></label>
+  <label>URL<input name="url" value="{{.Source.URL}}" required placeholder="https://kea.lan.example:8000/">
+    <span class="muted small">{{$.T "dhcp.url_hint"}}</span></label>
+  <label>{{$.T "dhcp.kind"}}
+    <select name="kind" id="dhcp-kind">
+      {{range .Kinds}}<option value="{{.}}"{{if eq (print .) $.Data.Source.Kind}} selected{{end}}>{{$.T (print "dhcp.kind_" .)}}</option>{{end}}
+    </select>
+    <span class="muted small">{{$.T "dhcp.kind_hint"}}</span></label>
+  <fieldset class="agent-only">
+    <legend>{{$.T "dhcp.families"}}</legend>
+    <label class="check"><input type="checkbox" name="dhcp4" value="1"{{if .Source.DHCP4}} checked{{end}}> DHCPv4</label>
+    <label class="check"><input type="checkbox" name="dhcp6" value="1"{{if .Source.DHCP6}} checked{{end}}> DHCPv6</label>
+  </fieldset>
+  <fieldset>
+    <legend>{{$.T "dhcp.auth"}}</legend>
+    <label>{{$.T "login.username"}}<input name="username" value="{{.Source.Username}}" autocomplete="off"></label>
+    <label>{{$.T "login.password"}}<input type="password" name="password" autocomplete="new-password"
+      placeholder="{{if .HasPassword}}{{$.T "switches.keep_secret"}}{{end}}"></label>
+    {{if .HasPassword}}<label class="check"><input type="checkbox" name="clear_password" value="1"> {{$.T "dhcp.clear_password"}}</label>{{end}}
+  </fieldset>
+  <fieldset>
+    <legend>TLS</legend>
+    <label>{{$.T "dhcp.ca_pem"}}<textarea name="ca_pem" rows="4" placeholder="-----BEGIN CERTIFICATE-----">{{.Source.CAPEM}}</textarea>
+      <span class="muted small">{{$.T "dhcp.ca_hint"}}</span></label>
+    <label>{{$.T "dhcp.client_cert"}}<textarea name="client_cert_pem" rows="4" placeholder="-----BEGIN CERTIFICATE-----">{{.Source.ClientCertPEM}}</textarea></label>
+    <label>{{$.T "dhcp.client_key"}}<textarea name="client_key_pem" rows="4"
+      placeholder="{{if .HasKey}}{{$.T "switches.keep_secret"}}{{else}}-----BEGIN PRIVATE KEY-----{{end}}"></textarea>
+      <span class="muted small">{{$.T "dhcp.client_hint"}}</span></label>
+    <label class="check danger-text"><input type="checkbox" name="insecure" value="1"{{if .Source.InsecureSkipVerify}} checked{{end}}
+      data-confirm-check="{{$.T "dhcp.insecure_confirm"}}"> {{$.T "dhcp.insecure"}}</label>
+  </fieldset>
+  <label>{{$.T "switches.interval"}}<input type="number" name="poll_interval" min="10" max="3600" value="{{.Source.PollInterval}}"></label>
+  <label class="check"><input type="checkbox" name="enabled" value="1"{{if .Source.Enabled}} checked{{end}}> {{$.T "switches.enabled"}}</label>
+  <div class="actions">
+    <button type="submit" class="primary">{{$.T "dhcp.save_test"}}</button>
+    <a class="button" href="/admin/dhcp">{{$.T "action.cancel"}}</a>
+  </div>
+</form>
+<p class="muted small">{{$.T "dhcp.readonly_hint"}}</p>
+{{if .Source.ID}}
+<form method="post" action="/admin/dhcp/{{.Source.ID}}/delete" class="card danger-zone" data-confirm="{{$.T "dhcp.delete_confirm"}}">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <p>{{$.T "dhcp.delete_hint"}}</p>
+  <button type="submit" class="danger">{{$.T "action.delete"}}</button>
+</form>
+{{end}}
+{{end}}
+{{end}}

@@ -1,0 +1,28 @@
+{{define "content"}}
+{{with .Data}}
+<h1>{{$.T "events.compare"}}</h1>
+<form class="filters card" method="get" action="/events/compare" data-autosubmit>
+  {{range $i, $sel := .Selected}}
+  <label>{{$.T "col.event"}} {{addi $i 1}}
+    <select name="e">
+      <option value="">–</option>
+      {{range $.Data.Events}}<option value="{{.Slug}}"{{if eq .Slug $sel}} selected{{end}}>{{.Name}} ({{dt .StartedAt}})</option>{{end}}
+    </select>
+  </label>
+  {{end}}
+  <noscript><button type="submit">{{$.T "action.apply"}}</button></noscript>
+</form>
+<div class="grid-{{len .Columns}}">
+{{range .Columns}}
+  <section class="card">
+    <h3><a href="/events/{{.Event.Slug}}">{{.Event.Name}}</a></h3>
+    <p class="muted small">{{dt .Event.StartedAt}} · {{bytes .Summary.BytesDown}} ↓ · {{bytes .Summary.BytesUp}} ↑ · {{.Summary.Clients}} {{$.T "dashboard.clients"}}</p>
+    <h4>{{$.T "dashboard.top_down"}}</h4>{{template "ranking_rows" .TopDown}}
+    <h4>{{$.T "dashboard.top_up"}}</h4>{{template "ranking_rows" .TopUp}}
+  </section>
+{{else}}
+  <p class="muted">{{$.T "events.compare_hint"}}</p>
+{{end}}
+</div>
+{{end}}
+{{end}}

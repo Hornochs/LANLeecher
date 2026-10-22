@@ -1,0 +1,15 @@
+# LANLeecher configuration in the Docker image. Mount your own file to
+# /etc/lanleecher/config.yaml to change values.
+listen: 0.0.0.0:9040
+public_url: http://localhost:9040
+trusted_proxies: [127.0.0.1, "::1"]
+# Lives in the data volume and is created on first start.
+secret_key_file: /var/lib/lanleecher/secret.key
+storage:
+  path: /var/lib/lanleecher/lanleecher.db
+log:
+  level: info
+  format: text
+board:
+  enabled: false
+  public: false

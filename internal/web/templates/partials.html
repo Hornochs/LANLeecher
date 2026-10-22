@@ -1,0 +1,54 @@
+{{define "ranking_rows"}}{{/* dot: RankingView */}}
+<table class="ranking">
+  <thead><tr>
+    <th class="num">#</th><th>{{.P.T "col.name"}}</th>
+    <th class="num">{{.P.T "col.down"}}</th><th class="num">{{.P.T "col.up"}}</th>
+    {{if .Wide}}<th class="num">{{.P.T "col.total"}}</th><th class="num">{{.P.T "col.ratio"}}</th>{{end}}
+  </tr></thead>
+  <tbody>
+  {{range .Entries}}
+    <tr{{if .Hidden}} class="hidden-row"{{end}}>
+      <td class="num rank">{{.Rank}}</td>
+      <td>
+        {{if eq .Type "mac"}}<a href="/devices/{{.Key}}">{{.Name}}</a>
+        {{else}}<span class="badge">{{$.P.T "type.port_group"}}</span> {{.Name}}{{end}}
+        {{if .Hidden}}<span class="badge badge-muted">{{$.P.T "label.hidden"}}</span>{{end}}
+        {{if and .Hostname (ne .Hostname .Name)}}<span class="muted small">{{.Hostname}}</span>{{end}}
+        {{if and (eq .Type "mac") (not .Hostname) .Vendor}}<span class="muted small">{{.Vendor}}</span>{{end}}
+        {{if eq .Type "port_group"}}<span class="muted small">{{len .MACs}} MACs</span>{{end}}
+        <svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
+          <rect class="bar-down" width="{{pct .BytesDown $.Max}}" height="2"/>
+          <rect class="bar-up" y="2" width="{{pct .BytesUp $.Max}}" height="2"/>
+        </svg>
+      </td>
+      <td class="num">{{bytes .BytesDown}}</td>
+      <td class="num">{{bytes .BytesUp}}</td>
+      {{if $.Wide}}<td class="num">{{bytes .Total}}</td><td class="num">{{ratio .BytesDown .BytesUp}}</td>{{end}}
+    </tr>
+  {{else}}
+    <tr><td colspan="6" class="muted">{{$.P.T "rankings.empty"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
+
+{{define "admin_nav"}}
+<nav class="subnav">
+  <a href="/admin/users">{{.T "admin.users"}}</a>
+  <a href="/admin/tokens">{{.T "admin.tokens"}}</a>
+  <a href="/admin/dhcp">{{.T "admin.dhcp"}}</a>
+  <a href="/admin/audit">{{.T "admin.audit"}}</a>
+  <a href="/admin/settings">{{.T "admin.settings"}}</a>
+</nav>
+{{end}}
+
+{{define "legend"}}
+<p class="legend"><span class="swatch swatch-down"></span> {{.T "col.down"}} <span class="swatch swatch-up"></span> {{.T "col.up"}}</p>
+{{end}}
+
+{{define "role_select"}}{{/* dot: RoleSelect */}}
+<select name="{{.Name}}">
+  {{if .Keep}}<option value="">{{.P.T "ports.keep"}}</option>{{end}}
+  {{range .Roles}}<option value="{{.}}"{{if eq (print .) (print $.Current)}} selected{{end}}>{{$.P.T (print "role." .)}}</option>{{end}}
+</select>
+{{end}}

@@ -1,0 +1,663 @@
+openapi: 3.1.0
+info:
+  title: LANLeecher API
+  version: "1.0"
+  summary: Traffic rankings per client for LAN parties, collected via SNMP.
+  description: |
+    LANLeecher counts download and upload per client (MAC address) for each event.
+
+    Conventions:
+    - Bytes are integers, throughput is bit/s, timestamps are RFC 3339 in UTC.
+    - Field names carry the direction: `bytes_down` (to the client), `bytes_up` (from the client).
+      Internally `bytes_down` comes from ifHCOutOctets and `bytes_up` from ifHCInOctets of the switch port.
+    - MAC addresses are accepted in any notation and returned as `aa:bb:cc:dd:ee:ff`.
+    - Errors use RFC 9457 `application/problem+json` with a stable `code`.
+    - Authentication: `Authorization: Bearer llk_...`. Tokens are created by admins in the web UI.
+      A logged-in browser session also works; unsafe methods then need the `X-CSRF-Token` header.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+security:
+  - bearer: []
+tags:
+  - name: rankings
+  - name: events
+  - name: clients
+  - name: board
+  - name: operations
+
+paths:
+  /api/v1/rankings/{direction}:
+    get:
+      tags: [rankings]
+      operationId: getRanking
+      summary: Top downloaders, uploaders or total
+      description: |
+        Scope `read:rankings`. Hidden ports and devices are excluded unless `include_hidden=true`.
+        MAC, IP and hostname fields are only included with scope `read:clients`.
+      parameters:
+        - name: direction
+          in: path
+          required: true
+          schema: {type: string, enum: [download, upload, total]}
+        - $ref: "#/components/parameters/event"
+        - name: limit
+          in: query
+          description: Number of entries (1–500). UI shortcuts are 10, 20 and 50.
+          schema: {type: integer, minimum: 1, maximum: 500, default: 10}
+        - name: include_hidden
+          in: query
+          schema: {type: boolean, default: false}
+        - name: switch
+          in: query
+          description: Restrict to one switch (ID).
+          schema: {type: integer, minimum: 1}
+        - name: from
+          in: query
+          description: Start of a time range (RFC 3339), uses 5-minute buckets.
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+      responses:
+        "200":
+          description: Ranking
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Ranking"}
+              example:
+                event: {name: "Basement LAN #12", slug: basement-lan-12, started_at: "2026-11-13T16:00:00Z", ended_at: null, active: true, notes: ""}
+                order: download
+                entries:
+                  - {rank: 1, type: mac, id: 17, name: DESKTOP-FRAG42, bytes_down: 412000000000, bytes_up: 18000000000}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+      x-codeSamples:
+        - lang: curl
+          source: 'curl -H "Authorization: Bearer $TOKEN" "https://lanleecher.example/api/v1/rankings/download?limit=10"'
+
+  /api/v1/events:
+    get:
+      tags: [events]
+      operationId: listEvents
+      summary: List events, newest first
+      description: Scope `read:rankings`.
+      parameters:
+        - name: q
+          in: query
+          description: Search in name and slug.
+          schema: {type: string}
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events: {type: array, items: {$ref: "#/components/schemas/Event"}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+    post:
+      tags: [events]
+      operationId: startEvent
+      summary: Start an event (ends the running one)
+      description: Scope `write:events`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1}
+                notes: {type: string}
+            example: {name: "Basement LAN #13", notes: ""}
+      responses:
+        "201":
+          description: Started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event]
+                properties:
+                  event: {$ref: "#/components/schemas/Event"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+      x-codeSamples:
+        - lang: curl
+          source: |
+            curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+              -d '{"name":"Basement LAN #13"}' https://lanleecher.example/api/v1/events
+
+  /api/v1/events/{slug}:
+    get:
+      tags: [events]
+      operationId: getEvent
+      summary: Event with totals
+      description: Scope `read:rankings`.
+      parameters:
+        - {name: slug, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, totals]
+                properties:
+                  event: {$ref: "#/components/schemas/Event"}
+                  totals: {$ref: "#/components/schemas/Totals"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/events/{slug}/stop:
+    post:
+      tags: [events]
+      operationId: stopEvent
+      summary: Stop the running event
+      description: Scope `write:events`. Totals are frozen; all data stays.
+      parameters:
+        - {name: slug, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event]
+                properties:
+                  event: {$ref: "#/components/schemas/Event"}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/clients/search:
+    get:
+      tags: [clients]
+      operationId: searchClients
+      summary: Search by MAC (any notation, partial), IP or hostname
+      description: Scope `read:clients`.
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 2}}
+      responses:
+        "200":
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [query, results]
+                properties:
+                  query: {type: string}
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [device_id, name, mac, ip, hostname, vendor, last_seen, match]
+                      properties:
+                        device_id: {type: integer}
+                        name: {type: string}
+                        mac: {type: string}
+                        vendor: {type: string, description: "IEEE OUI vendor; empty for randomized (locally administered) MACs"}
+                        ip: {type: string}
+                        hostname: {type: string}
+                        last_seen: {type: string, format: date-time}
+                        match: {type: string, enum: [mac, ip, hostname]}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/clients/mac/{mac}:
+    get:
+      tags: [clients]
+      operationId: getClient
+      summary: Totals per event, IP/hostname history and ports of a MAC's device
+      description: Scope `read:clients`.
+      parameters:
+        - $ref: "#/components/parameters/mac"
+        - name: events
+          in: query
+          description: Only the last N events.
+          schema: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Client"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/clients/mac/{mac}/timeseries:
+    get:
+      tags: [clients]
+      operationId: getClientTimeseries
+      summary: 5-minute buckets of a device in one event
+      description: Scope `read:clients`.
+      parameters:
+        - $ref: "#/components/parameters/mac"
+        - $ref: "#/components/parameters/event"
+      responses:
+        "200":
+          description: Time series
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, bucket_seconds, points]
+                properties:
+                  event: {$ref: "#/components/schemas/Event"}
+                  bucket_seconds: {type: integer, const: 300}
+                  points:
+                    type: array
+                    items:
+                      type: object
+                      required: [start, bytes_down, bytes_up]
+                      properties:
+                        start: {type: string, format: date-time}
+                        bytes_down: {type: integer}
+                        bytes_up: {type: integer}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/clients/ip/{ip}:
+    get:
+      tags: [clients]
+      operationId: getClientsByIP
+      summary: MACs that had this IP, with time range
+      description: Scope `read:clients`.
+      parameters:
+        - {name: ip, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: History
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ip, entries]
+                properties:
+                  ip: {type: string}
+                  entries: {type: array, items: {$ref: "#/components/schemas/History"}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/clients/hostname/{name}:
+    get:
+      tags: [clients]
+      operationId: getClientsByHostname
+      summary: MACs that had this hostname (case-insensitive)
+      description: Scope `read:clients`.
+      parameters:
+        - {name: name, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: History
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hostname, entries]
+                properties:
+                  hostname: {type: string}
+                  entries: {type: array, items: {$ref: "#/components/schemas/History"}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/ports:
+    get:
+      tags: [clients]
+      operationId: getPorts
+      summary: Traffic of all ports in an event, hidden ones included
+      description: Scope `read:clients`.
+      parameters:
+        - $ref: "#/components/parameters/event"
+      responses:
+        "200":
+          description: Ports
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event, ports]
+                properties:
+                  event: {$ref: "#/components/schemas/Event"}
+                  ports:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, switch, if_name, label, role, hidden, bytes_down, bytes_up, unassigned_bytes_down, unassigned_bytes_up]
+                      properties:
+                        id: {type: integer}
+                        switch: {type: string}
+                        if_name: {type: string}
+                        label: {type: string}
+                        role: {type: string, enum: [client, multi-client, server, uplink]}
+                        hidden: {type: boolean}
+                        bytes_down: {type: integer}
+                        bytes_up: {type: integer}
+                        unassigned_bytes_down: {type: integer}
+                        unassigned_bytes_up: {type: integer}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/board:
+    get:
+      tags: [board]
+      operationId: getBoard
+      summary: Complete beamer content
+      description: |
+        Scope `read:board` (or none if `board.public` is enabled). `/board` renders exactly this.
+        Contains no MACs or IPs and no hidden entries. `rank_change` is positive when an entry moved up
+        since the previous poll.
+      security: [{bearer: []}, {}]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, enum: [10, 20, 50], default: 10}
+        - name: event
+          in: query
+          description: Event slug; default is the active event.
+          schema: {type: string}
+      responses:
+        "200":
+          description: Board
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Board"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/board/stream:
+    get:
+      tags: [board]
+      operationId: streamBoard
+      summary: Board as Server-Sent Events, one `board` event after each poll
+      security: [{bearer: []}, {}]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, enum: [10, 20, 50], default: 10}
+        - name: event
+          in: query
+          schema: {type: string}
+      responses:
+        "200":
+          description: "Stream of `event: board` with a Board JSON in `data:`"
+          content:
+            text/event-stream:
+              schema: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/metrics:
+    get:
+      tags: [operations]
+      operationId: getMetrics
+      summary: Prometheus metrics
+      description: "Scope `read:rankings`. Can be disabled with `api.metrics_enabled: false`."
+      responses:
+        "200":
+          description: Prometheus text format
+          content:
+            text/plain:
+              schema: {type: string}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /health:
+    get:
+      tags: [operations]
+      operationId: health
+      summary: Liveness check without authentication
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema: {type: string, const: ok}
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: "API token `llk_...` with scopes read:rankings, read:clients, write:events, read:board."
+  parameters:
+    event:
+      name: event
+      in: query
+      description: Event slug, `active` (default) or `all` (rankings only).
+      schema: {type: string, default: active}
+    mac:
+      name: mac
+      in: path
+      required: true
+      description: MAC in any notation (aa:bb:cc:dd:ee:ff, aa-bb-..., aabb.ccdd.eeff, aabbccddeeff).
+      schema: {type: string}
+  responses:
+    BadRequest:
+      description: Invalid parameter
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    Forbidden:
+      description: Missing scope, IP not allowed or CSRF failure
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    NotFound:
+      description: Unknown event, MAC or endpoint
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    Conflict:
+      description: State conflict
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    TooManyRequests:
+      description: Rate limit per token exceeded
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    InternalError:
+      description: Unexpected server error (details in the server log)
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        code:
+          type: string
+          description: Stable error code.
+          enum: [not_found, invalid_token, ip_not_allowed, rate_limited, csrf, unauthorized, insufficient_scope,
+                 no_active_event, event_not_found, invalid_parameter, invalid_body, event_not_active, invalid_mac,
+                 mac_not_found, invalid_ip, internal]
+    Event:
+      type: object
+      required: [name, slug, started_at, ended_at, active, notes]
+      properties:
+        name: {type: string}
+        slug: {type: string}
+        started_at: {type: string, format: date-time}
+        ended_at: {type: [string, "null"], format: date-time}
+        active: {type: boolean}
+        notes: {type: string}
+    Totals:
+      type: object
+      required: [bytes_down, bytes_up, clients]
+      properties:
+        bytes_down: {type: integer}
+        bytes_up: {type: integer}
+        clients: {type: integer, description: Distinct MACs with credited traffic.}
+    Ranking:
+      type: object
+      required: [event, order, entries]
+      properties:
+        event:
+          oneOf:
+            - $ref: "#/components/schemas/Event"
+            - type: "null"
+        order: {type: string, enum: [download, upload, total]}
+        entries:
+          type: array
+          items: {$ref: "#/components/schemas/RankingEntry"}
+    RankingEntry:
+      type: object
+      required: [rank, type, id, name, bytes_down, bytes_up]
+      properties:
+        rank: {type: integer, minimum: 1}
+        type:
+          type: string
+          enum: [mac, port_group]
+          description: "`mac` is a device (one or more merged MACs); `port_group` is a port with several clients."
+        id: {type: integer, description: Device ID for mac, port ID for port_group.}
+        name: {type: string, description: Display name, hostname, port label or MAC.}
+        bytes_down: {type: integer}
+        bytes_up: {type: integer}
+        hidden: {type: boolean, description: Only present with include_hidden=true.}
+        mac: {type: string, description: "read:clients only"}
+        macs: {type: array, items: {type: string}, description: "read:clients only"}
+        ip: {type: string, description: "read:clients only"}
+        hostname: {type: string, description: "read:clients only"}
+        vendor: {type: string, description: "read:clients only; IEEE OUI vendor of the device's newest MAC"}
+    History:
+      type: object
+      required: [mac, value, source, first_seen, last_seen]
+      properties:
+        mac: {type: string}
+        value: {type: string}
+        source: {type: string, enum: [snmp-arp, local-neigh, dhcp, netbios, mdns, llmnr, dns-ptr]}
+        first_seen: {type: string, format: date-time}
+        last_seen: {type: string, format: date-time}
+    Client:
+      type: object
+      required: [mac, vendor, device_id, name, hostname, ip, macs, hidden, events, ip_history, hostname_history, ports]
+      properties:
+        mac: {type: string}
+        vendor: {type: string, description: "IEEE OUI vendor of this MAC; empty for randomized (locally administered) MACs"}
+        device_id: {type: integer}
+        name: {type: string}
+        hostname: {type: string}
+        ip: {type: string}
+        macs: {type: array, items: {type: string}}
+        hidden: {type: boolean}
+        events:
+          type: array
+          items:
+            type: object
+            required: [event, bytes_down, bytes_up]
+            properties:
+              event: {$ref: "#/components/schemas/Event"}
+              bytes_down: {type: integer}
+              bytes_up: {type: integer}
+        ip_history: {type: array, items: {$ref: "#/components/schemas/History"}}
+        hostname_history: {type: array, items: {$ref: "#/components/schemas/History"}}
+        ports:
+          type: array
+          items:
+            type: object
+            required: [mac, port, vlan, first_seen, last_seen]
+            properties:
+              mac: {type: string}
+              port: {type: string}
+              vlan: {type: integer}
+              first_seen: {type: string, format: date-time}
+              last_seen: {type: string, format: date-time}
+    Board:
+      type: object
+      required: [event, generated_at, totals, throughput, top_download, top_upload]
+      properties:
+        event:
+          oneOf:
+            - type: object
+              required: [name, slug, started_at]
+              properties:
+                name: {type: string}
+                slug: {type: string}
+                started_at: {type: string, format: date-time}
+                ended_at: {type: string, format: date-time}
+            - type: "null"
+        generated_at: {type: string, format: date-time}
+        totals: {$ref: "#/components/schemas/Totals"}
+        throughput:
+          type: object
+          required: [down_bps, up_bps]
+          properties:
+            down_bps: {type: integer}
+            up_bps: {type: integer}
+        top_download: {type: array, items: {$ref: "#/components/schemas/BoardEntry"}}
+        top_upload: {type: array, items: {$ref: "#/components/schemas/BoardEntry"}}
+    BoardEntry:
+      type: object
+      required: [rank, rank_change, name, type, bytes_down, bytes_up]
+      properties:
+        rank: {type: integer}
+        rank_change: {type: integer}
+        name: {type: string}
+        type: {type: string, enum: [mac, port_group]}
+        bytes_down: {type: integer}
+        bytes_up: {type: integer}

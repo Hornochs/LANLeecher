@@ -1,0 +1,69 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{$.T "switches.switch"}}</p>
+    <h1><span class="dot {{if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span> {{.Switch.Name}}</h1>
+    <p class="muted">{{.Switch.Host}} · {{.Switch.SysName}} · {{.Switch.SysDescr}}{{if .Switch.LastPollAt}} · {{$.T "switches.last_poll"}} {{ago (deref .Switch.LastPollAt)}}{{end}}</p>
+    {{if and (not .Switch.LastPollOK) .Switch.LastError}}<p class="error">{{.Switch.LastError}}</p>{{end}}
+  </div>
+  <div class="actions">
+    {{if .ShowAll}}<a class="button" href="/switches/{{.Switch.ID}}">{{$.T "ports.physical_only"}}</a>
+    {{else}}<a class="button" href="/switches/{{.Switch.ID}}?all=1">{{$.T "ports.show_virtual"}} ({{.VirtualCount}})</a>{{end}}
+    {{if $.Can "admin"}}<a class="button" href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}
+  </div>
+</div>
+{{if .Suspects}}<p class="alert alert-warn">{{$.T "ports.suspect_banner" .Suspects}}</p>{{end}}
+<form method="post" action="/switches/{{.Switch.ID}}/ports" class="card">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="all" value="{{if .ShowAll}}1{{end}}">
+  {{if $.Can "operator"}}
+  <div class="bulk">
+    <strong>{{$.T "ports.bulk"}}:</strong>
+    {{template "role_select" .BulkRole}}
+    <select name="bulk_hidden">
+      <option value="">{{$.T "ports.keep"}}</option>
+      <option value="1">{{$.T "ports.hide"}}</option>
+      <option value="0">{{$.T "ports.show"}}</option>
+    </select>
+    <button type="submit" name="action" value="bulk">{{$.T "ports.apply_selected"}}</button>
+    <button type="submit" name="action" value="save" class="primary">{{$.T "ports.save_all"}}</button>
+  </div>
+  {{end}}
+  <div class="table-wrap">
+  <table class="ports">
+    <thead><tr>
+      {{if $.Can "operator"}}<th><input type="checkbox" data-select-all="sel" aria-label="{{$.T "ports.select_all"}}"></th>{{end}}
+      <th>{{$.T "col.port"}}</th><th>{{$.T "col.status"}}</th><th>{{$.T "col.role"}}</th><th>{{$.T "ports.label"}}</th>
+      <th>{{$.T "ports.hidden_short"}}</th><th>{{$.T "ports.macs"}}</th>
+      <th class="num">{{$.T "ports.event_traffic"}}</th><th class="num">{{$.T "ports.live"}}</th>
+    </tr></thead>
+    <tbody>
+    {{range .Rows}}
+    <tr class="{{if .Port.Hidden}}hidden-row{{end}}{{if .Port.UplinkSuspect}} suspect-row{{end}}">
+      {{if $.Can "operator"}}<td><input type="checkbox" name="sel" value="{{.Port.ID}}"><input type="hidden" name="port_ids" value="{{.Port.ID}}"></td>{{end}}
+      <td><strong>{{.Port.ShortName}}</strong>{{if .Port.IfAlias}} <span class="muted small">{{.Port.IfAlias}}</span>{{end}}
+        {{if not .Port.Physical}}<span class="badge badge-muted">{{$.T "ports.virtual"}}</span>{{end}}
+        {{if not .Port.HCSupported}}<span class="badge badge-warn" title="{{$.T "ports.no_hc_hint"}}">{{$.T "ports.no_hc"}}</span>{{end}}
+        {{if .Port.UplinkSuspect}}<span class="badge badge-warn" title="{{$.T "ports.uplink_suspect_hint"}}">{{$.T "ports.uplink_suspect"}}</span>{{end}}
+        {{if .Port.LLDPNeighbor}}<br><span class="muted small">LLDP: {{.Port.LLDPNeighbor}}</span>{{end}}</td>
+      <td class="nowrap">{{if .Port.OperUp}}<span class="dot dot-ok"></span> {{if .Port.SpeedMbps}}{{.Port.SpeedMbps}} M{{else}}up{{end}}{{else}}<span class="dot dot-off"></span> down{{end}}</td>
+      <td>{{if $.Can "operator"}}{{template "role_select" .RoleSelect}}{{else}}<span class="badge role-{{.Port.Role}}">{{$.T (print "role." .Port.Role)}}</span>{{end}}</td>
+      <td>{{if $.Can "operator"}}<input name="label_{{.Port.ID}}" value="{{.Port.Label}}" maxlength="60" class="narrow">{{else}}{{.Port.Label}}{{end}}</td>
+      <td>{{if $.Can "operator"}}<input type="checkbox" name="hidden_{{.Port.ID}}" value="1"{{if .Port.Hidden}} checked{{end}} aria-label="{{$.T "ports.hide"}}">{{else if .Port.Hidden}}✓{{end}}</td>
+      <td class="small">
+        {{if eq (print .Port.Role) "uplink"}}<span class="muted">{{.Port.MACCount}} MACs</span>
+        {{else}}{{range .MACs}}<div><a href="/devices/{{.DeviceID}}">{{if .Hostname}}{{.Hostname}}{{else}}<code>{{.MAC}}</code>{{end}}</a>{{if .IP}} <span class="muted">{{.IP}}</span>{{end}}{{if and .Vendor (not .Hostname)}} <span class="muted">{{.Vendor}}</span>{{end}}</div>{{else}}<span class="muted">–</span>{{end}}
+        {{end}}
+      </td>
+      <td class="num nowrap">{{if or .Traffic.BytesDown .Traffic.BytesUp}}{{bytes .Traffic.BytesDown}} ↓<br>{{bytes .Traffic.BytesUp}} ↑{{else}}–{{end}}</td>
+      <td class="num nowrap small">{{if .HasRate}}{{bps .Rate.DownBps}} ↓<br>{{bps .Rate.UpBps}} ↑{{else}}–{{end}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</form>
+<p class="muted small">{{$.T "ports.roles_hint"}}</p>
+{{end}}
+{{end}}

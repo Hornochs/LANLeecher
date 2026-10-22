@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>{{.T "merges.title"}}</h1>
+<p class="muted">{{.T "merges.hint"}}</p>
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "merges.device_a"}}</th><th>{{.T "merges.device_b"}}</th><th>{{.T "merges.reason"}}</th><th>{{.T "col.created"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Items}}
+  <tr>
+    <td><a href="/devices/{{.S.DeviceA}}">{{.NameA}}</a><br><code class="small">{{.S.MACA}}</code></td>
+    <td><a href="/devices/{{.S.DeviceB}}">{{.NameB}}</a><br><code class="small">{{.S.MACB}}</code></td>
+    <td>{{.S.Reason}}</td><td>{{dt .S.CreatedAt}}</td>
+    <td>{{if $.Can "operator"}}
+      <form method="post" action="/merges/{{.S.ID}}" class="inline">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <button name="decision" value="accept" class="primary">{{$.T "merges.accept"}}</button>
+        <button name="decision" value="reject">{{$.T "merges.reject"}}</button>
+      </form>{{end}}
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">{{$.T "merges.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}

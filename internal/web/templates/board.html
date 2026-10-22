@@ -1,0 +1,28 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LANLeecher · Board</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/board.js" defer></script>
+</head>
+<body class="board" data-limit="{{.Data.Limit}}" data-event="{{.Data.Event}}"
+  data-l-down="{{.T "board.top_down"}}" data-l-up="{{.T "board.top_up"}}" data-l-clients="{{.T "dashboard.clients"}}"
+  data-l-none="{{.T "board.no_event"}}" data-l-offline="{{.T "board.offline"}}">
+<header class="board-head">
+  <div><p class="eyebrow">LANLeecher</p><h1 id="board-event">…</h1></div>
+  <div class="board-stats">
+    <div><span class="stat-label">↓</span><span id="board-down" class="stat-value down">–</span><span id="board-down-bps" class="stat-sub">–</span></div>
+    <div><span class="stat-label">↑</span><span id="board-up" class="stat-value up">–</span><span id="board-up-bps" class="stat-sub">–</span></div>
+    <div><span class="stat-label" id="board-clients-label"></span><span id="board-clients" class="stat-value">–</span></div>
+  </div>
+</header>
+<main class="board-grid">
+  <section><h2 id="board-title-down"></h2><ol id="board-list-down" class="board-list"></ol></section>
+  <section><h2 id="board-title-up"></h2><ol id="board-list-up" class="board-list"></ol></section>
+</main>
+<p id="board-status" class="board-status"></p>
+</body>
+</html>{{end}}
+{{define "content"}}{{end}}

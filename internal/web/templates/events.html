@@ -1,0 +1,48 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>{{$.T "nav.events"}}</h1>
+  <a href="/events/compare">{{$.T "events.compare"}}</a>
+</div>
+{{if $.Can "operator"}}
+<section class="card">
+  {{if .Active}}
+  <form method="post" action="/events/stop" class="inline" data-confirm="{{$.T "events.stop_confirm"}}">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <span>{{$.T "dashboard.active_event"}}: <strong>{{.Active.Name}}</strong></span>
+    <button type="submit" class="danger">{{$.T "events.stop"}}</button>
+  </form>
+  {{end}}
+  <form method="post" action="/events/start" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>{{$.T "events.name"}}<input name="name" required maxlength="100" placeholder="{{$.T "events.name_placeholder"}}"></label>
+    <label>{{$.T "events.notes"}}<input name="notes" maxlength="500"></label>
+    <button type="submit" class="primary"{{if .Active}} data-confirm="{{$.T "events.start_confirm"}}"{{end}}>{{$.T "events.start"}}</button>
+  </form>
+</section>
+{{end}}
+<form class="filters card" method="get" action="/events">
+  <input type="search" name="q" value="{{.Q}}" placeholder="{{$.T "events.search"}}">
+  <label>{{$.T "rankings.from"}}<input type="date" name="from" value="{{.From}}"></label>
+  <label>{{$.T "rankings.to"}}<input type="date" name="to" value="{{.To}}"></label>
+  <button type="submit">{{$.T "nav.search"}}</button>
+</form>
+<section class="card">
+<table>
+  <thead><tr><th>{{$.T "col.event"}}</th><th>{{$.T "events.started"}}</th><th>{{$.T "events.ended"}}</th>
+    <th class="num">{{$.T "col.down"}}</th><th class="num">{{$.T "col.up"}}</th><th class="num">{{$.T "dashboard.clients"}}</th></tr></thead>
+  <tbody>
+  {{range .Rows}}
+  <tr>
+    <td><a href="/events/{{.Event.Slug}}">{{.Event.Name}}</a> {{if .Event.Active}}<span class="badge badge-live">{{$.T "events.running"}}</span>{{end}}</td>
+    <td>{{dt .Event.StartedAt}}</td><td>{{if .Event.EndedAt}}{{dt (deref .Event.EndedAt)}}{{else}}–{{end}}</td>
+    <td class="num">{{bytes .Summary.BytesDown}}</td><td class="num">{{bytes .Summary.BytesUp}}</td><td class="num">{{.Summary.Clients}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="6" class="muted">{{$.T "events.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}
+{{end}}

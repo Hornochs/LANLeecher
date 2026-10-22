@@ -1,0 +1,105 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+{{with .Data}}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{$.T "admin.dhcp"}} · {{$.T (print "dhcp.kind_" .Source.Kind)}}</p>
+    <h1><span id="dhcp-dot" class="dot {{if not .Source.Enabled}}dot-off{{else if and .Source.LastPollOK (not .Source.CertProblem)}}dot-ok{{else}}dot-err{{end}}"></span> {{.Source.Name}}</h1>
+    <p class="muted"><code>{{.Source.URL}}</code>{{if .Source.KeaVersion}} · Kea {{.Source.KeaVersion}}{{end}}
+      · {{.Source.LeaseCount}} {{$.T "dhcp.leases"}}
+      · {{$.T "switches.last_poll"}} {{if .Source.LastPollAt}}{{ago (deref .Source.LastPollAt)}}{{else}}{{$.T "switches.never"}}{{end}}</p>
+  </div>
+  <div class="actions">
+    <button type="button" hx-post="/admin/dhcp/{{.Source.ID}}/test" hx-target="#dhcp-test" hx-indicator="#dhcp-spinner"
+      {{if .AutoTest}}hx-trigger="load, click"{{end}}>{{$.T "switches.test"}}</button>
+    <span id="dhcp-spinner" class="spinner htmx-indicator" aria-hidden="true"></span>
+    <a class="button" href="/admin/dhcp/{{.Source.ID}}/edit">{{$.T "action.edit"}}</a>
+  </div>
+</div>
+
+{{if .Source.InsecureSkipVerify}}<p class="alert alert-error">{{$.T "dhcp.insecure_warning"}}</p>{{end}}
+
+<div id="dhcp-test">
+{{if and .Source.CertProblem .Presented}}
+  {{template "dhcp_cert_warning" (certWarning $ .Source .Presented .Source.CertProblem .Source.LastError)}}
+{{else if and (not .Source.LastPollOK) .Source.LastError}}
+  <p class="alert alert-error">{{.Source.LastError}}</p>
+{{end}}
+</div>
+
+<section class="card">
+  <h3>{{$.T "dhcp.trust"}}</h3>
+  {{if .Pinned}}
+    <p>{{$.T "dhcp.pinned_intro"}}</p>
+    {{template "dhcp_cert_table" (certTable $ .Pinned)}}
+    {{if .Pinned.Expired}}<p class="alert alert-error">{{$.T "dhcp.cert_expired"}}</p>
+    {{else if .Pinned.ExpiresSoon}}<p class="alert alert-warn">{{$.T "dhcp.cert_expires_soon" (dt .Pinned.NotAfter)}}</p>{{end}}
+    <form method="post" action="/admin/dhcp/{{.Source.ID}}/untrust" class="inline" data-confirm="{{$.T "dhcp.untrust_confirm"}}">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button type="submit" class="danger">{{$.T "dhcp.untrust"}}</button>
+    </form>
+  {{else if .Source.InsecureSkipVerify}}
+    <p class="error">{{$.T "dhcp.insecure_warning"}}</p>
+  {{else if .Source.CAPEM}}
+    <p>{{$.T "dhcp.trust_ca"}}</p>
+  {{else}}
+    <p>{{$.T "dhcp.trust_system"}}</p>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+
+{{define "dhcp_cert_table"}}
+<table class="kv">
+  <tr><th>{{.P.T "dhcp.subject"}}</th><td>{{.C.Subject}}</td></tr>
+  <tr><th>{{.P.T "dhcp.issuer"}}</th><td>{{.C.Issuer}}{{if .C.SelfSigned}} <span class="badge">{{.P.T "dhcp.self_signed"}}</span>{{end}}</td></tr>
+  <tr><th>{{.P.T "dhcp.sans"}}</th><td>{{range $i, $s := .C.SANs}}{{if $i}}, {{end}}<code>{{$s}}</code>{{else}}–{{end}}</td></tr>
+  <tr><th>{{.P.T "dhcp.validity"}}</th><td>{{dt .C.NotBefore}} – {{dt .C.NotAfter}}{{if .C.Expired}} <span class="badge badge-warn">{{.P.T "dhcp.expired"}}</span>{{end}}</td></tr>
+  <tr><th>SHA-256</th><td><code class="fingerprint">{{.C.SHA256}}</code></td></tr>
+</table>
+{{end}}
+
+{{define "dhcp_cert_warning"}}
+<section class="card cert-warning">
+  <h3>⚠ {{if eq .Problem "changed"}}{{.P.T "dhcp.warn_changed_title"}}{{else}}{{.P.T "dhcp.warn_untrusted_title"}}{{end}}</h3>
+  <p>{{if eq .Problem "changed"}}{{.P.T "dhcp.warn_changed"}}{{else}}{{.P.T "dhcp.warn_untrusted"}}{{end}}</p>
+  {{if .Reason}}<p class="muted small">{{.P.T "dhcp.reason"}}: {{.Reason}}</p>{{end}}
+  {{if eq .Problem "changed"}}
+  <table class="kv">
+    <tr><th>{{.P.T "dhcp.fp_trusted"}}</th><td><code class="fingerprint">{{.OldFingerprint}}</code></td></tr>
+    <tr><th>{{.P.T "dhcp.fp_presented"}}</th><td><code class="fingerprint">{{.C.SHA256}}</code></td></tr>
+  </table>
+  {{end}}
+  {{template "dhcp_cert_table" .}}
+  <form method="post" action="/admin/dhcp/{{.Source.ID}}/trust" class="inline" data-confirm="{{.P.T "dhcp.trust_confirm"}}">
+    <input type="hidden" name="_csrf" value="{{.P.CSRF}}">
+    <input type="hidden" name="fingerprint" value="{{.C.Hex}}">
+    <button type="submit" class="primary">{{.P.T "dhcp.trust_button"}}</button>
+  </form>
+  <p class="muted small">{{.P.T "dhcp.trust_hint"}}</p>
+</section>
+{{end}}
+
+{{define "dhcp_test"}}
+{{with .Data}}
+  <span id="dhcp-dot" hx-swap-oob="true" class="dot {{if .Result.OK}}dot-ok{{else}}dot-err{{end}}"></span>
+  {{if .Result.OK}}
+  <section class="card test-ok">
+    <h3>✓ {{$.T "switches.test_ok"}}</h3>
+    <p>Kea {{.Result.Version}}{{if .Result.TLSVersion}} · {{.Result.TLSVersion}}{{end}}
+      {{range .Families}} · {{.}}: {{index $.Data.Result.Leases .}} {{$.T "dhcp.active_leases"}}{{end}}
+      · {{.Result.Known}} {{$.T "dhcp.known"}}</p>
+    {{if .Result.Cert}}<p class="muted small">{{$.T "dhcp.subject"}}: {{.Result.Cert.Subject}} · {{$.T "dhcp.valid_until"}} {{dt .Result.Cert.NotAfter}}
+      {{if .Result.Cert.ExpiresSoon}}<span class="badge badge-warn">{{$.T "dhcp.expires_soon"}}</span>{{end}}</p>{{end}}
+  </section>
+  {{else if .Presented}}
+    {{template "dhcp_cert_warning" (certWarning $ .Source .Presented .Result.CertErr.Problem .Result.Err)}}
+  {{else}}
+  <section class="card test-fail">
+    <h3>✗ {{$.T "switches.test_fail"}}</h3>
+    <p class="error">{{.Result.Err}}</p>
+    <p class="muted small">{{$.T "dhcp.test_fail_hint"}}</p>
+  </section>
+  {{end}}
+{{end}}
+{{end}}
