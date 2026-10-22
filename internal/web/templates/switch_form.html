@@ -1,0 +1,70 @@
+{{define "content"}}
+{{with .Data}}
+<h1>{{if .Switch.ID}}{{$.T "switches.edit"}}: {{.Switch.Name}}{{else}}{{$.T "switches.add"}}{{end}}</h1>
+<form method="post" action="{{if .Switch.ID}}/switches/{{.Switch.ID}}{{else}}/switches{{end}}" class="card form-grid" id="switch-form">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="id" value="{{.Switch.ID}}">
+  <label>{{$.T "col.name"}}<input name="name" value="{{.Switch.Name}}" required maxlength="60" placeholder="SW01"></label>
+  <label>Host / IP<input name="host" value="{{.Switch.Host}}" required maxlength="253" placeholder="10.0.0.2"></label>
+  <label>{{$.T "switches.port"}}<input name="port" type="number" min="1" max="65535" value="{{.Switch.Port}}"></label>
+  <label>{{$.T "switches.version"}}
+    <select name="snmp_version" id="snmp-version">
+      {{range .Versions}}<option value="{{.}}"{{if eq . $.Data.Switch.SNMPVersion}} selected{{end}}>{{.}}</option>{{end}}
+    </select>
+  </label>
+  <fieldset class="v2c">
+    <legend>SNMP v2c</legend>
+    <label>Community<input name="community" type="password" autocomplete="off" placeholder="{{if .Switch.ID}}{{$.T "switches.keep_secret"}}{{end}}"></label>
+  </fieldset>
+  <fieldset class="v3">
+    <legend>SNMP v3</legend>
+    <label>{{$.T "login.username"}}<input name="v3_user" value="{{.Creds.Username}}" autocomplete="off"></label>
+    <label>Security-Level<select name="v3_level">{{range .Levels}}<option{{if eq . $.Data.Creds.SecurityLevel}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label>Auth<select name="v3_auth">{{range .AuthProtos}}<option{{if eq . $.Data.Creds.AuthProtocol}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label>{{$.T "switches.auth_password"}}<input name="v3_auth_pass" type="password" autocomplete="off" placeholder="{{if .Switch.ID}}{{$.T "switches.keep_secret"}}{{end}}"></label>
+    <label>Privacy<select name="v3_priv">{{range .PrivProtos}}<option{{if eq . $.Data.Creds.PrivProtocol}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label>{{$.T "switches.priv_password"}}<input name="v3_priv_pass" type="password" autocomplete="off" placeholder="{{if .Switch.ID}}{{$.T "switches.keep_secret"}}{{end}}"></label>
+    <label>Context<input name="v3_context" value="{{.Creds.ContextName}}"></label>
+  </fieldset>
+  <label>{{$.T "switches.interval"}}<input name="poll_interval" type="number" min="0" max="3600" value="{{.Switch.PollInterval}}">
+    <span class="muted small">{{$.T "switches.interval_hint"}} ({{.DefaultInterval}})</span></label>
+  <label>{{$.T "switches.fdb_adapter"}}
+    <select name="fdb_adapter">{{range .Adapters}}<option value="{{.}}"{{if eq . $.Data.Switch.FDBAdapter}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+  <label class="check"><input type="checkbox" name="arp_source" value="1"{{if .Switch.ARPSource}} checked{{end}}> {{$.T "switches.arp_source"}}</label>
+  <label class="check"><input type="checkbox" name="enabled" value="1"{{if .Switch.Enabled}} checked{{end}}> {{$.T "switches.enabled"}}</label>
+  <div class="actions">
+    <button type="button" hx-post="/switches/test" hx-target="#test-result" hx-include="#switch-form" hx-indicator="#test-spinner">{{$.T "switches.test"}}</button>
+    <button type="submit" class="primary">{{$.T "action.save"}}</button>
+    <span id="test-spinner" class="spinner htmx-indicator" aria-hidden="true"></span>
+  </div>
+</form>
+<div id="test-result"></div>
+{{if .Switch.ID}}
+<form method="post" action="/switches/{{.Switch.ID}}/delete" class="card danger-zone" data-confirm="{{$.T "switches.delete_confirm"}}">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <p>{{$.T "switches.delete_hint"}}</p>
+  <button type="submit" class="danger">{{$.T "action.delete"}}</button>
+</form>
+{{end}}
+{{end}}
+{{end}}
+
+{{define "switch_test"}}
+{{with .Data}}
+<section class="card test-ok">
+  <h3>✓ {{$.T "switches.test_ok"}} <span class="muted small">({{dur .Duration}})</span></h3>
+  <p><strong>{{.System.Name}}</strong> · {{.System.Descr}} · Uptime {{dur .System.Uptime}}</p>
+  <table>
+    <thead><tr><th>ifIndex</th><th>{{$.T "col.name"}}</th><th>Alias</th><th>{{$.T "col.status"}}</th><th>Speed</th><th>64 Bit</th></tr></thead>
+    <tbody>
+    {{range .Interfaces}}
+    <tr{{if not .Physical}} class="hidden-row"{{end}}><td>{{.IfIndex}}</td><td>{{.Name}}{{if not .Physical}} <span class="badge badge-muted">{{$.T "ports.virtual"}}</span>{{end}}</td><td>{{.Alias}}</td>
+      <td>{{if .OperUp}}<span class="dot dot-ok"></span> up{{else}}<span class="dot dot-off"></span> down{{end}}</td>
+      <td>{{if .SpeedMbps}}{{.SpeedMbps}} Mbit/s{{end}}</td>
+      <td>{{if .HasHC}}✓{{else}}<span class="error">{{$.T "ports.no_hc"}}</span>{{end}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+{{end}}

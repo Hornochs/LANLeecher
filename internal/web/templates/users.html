@@ -1,0 +1,51 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "admin.users"}}</h1>
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "login.username"}}</th><th>{{.T "col.role"}}</th><th>{{.T "account.language"}}</th><th>{{.T "users.last_login"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Users}}
+  <tr{{if .Disabled}} class="hidden-row"{{end}}>
+    <td>{{.Username}}{{if .Disabled}} <span class="badge badge-muted">{{$.T "users.disabled"}}</span>{{end}}</td>
+    <td colspan="2">
+      <form method="post" action="/admin/users/{{.ID}}" class="inline">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <select name="role">{{$r := .Role}}{{range $.Data.Roles}}<option value="{{.}}"{{if eq . $r}} selected{{end}}>{{$.T (print "urole." .)}}</option>{{end}}</select>
+        <select name="language"><option value="de"{{if eq .Language "de"}} selected{{end}}>Deutsch</option><option value="en"{{if eq .Language "en"}} selected{{end}}>English</option></select>
+        <label class="check"><input type="checkbox" name="disabled" value="1"{{if .Disabled}} checked{{end}}> {{$.T "users.disabled"}}</label>
+        <button type="submit">{{$.T "action.save"}}</button>
+      </form>
+    </td>
+    <td>{{if .LastLogin}}{{dt (deref .LastLogin)}}{{else}}–{{end}}</td>
+    <td class="nowrap">
+      <details><summary>{{$.T "users.more"}}</summary>
+        <form method="post" action="/admin/users/{{.ID}}/password" class="inline">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <input type="password" name="password" minlength="10" required placeholder="{{$.T "users.new_password"}}" autocomplete="new-password">
+          <button type="submit">{{$.T "users.set_password"}}</button>
+        </form>
+        <form method="post" action="/admin/users/{{.ID}}/delete" class="inline" data-confirm="{{$.T "users.delete_confirm"}}">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <button type="submit" class="danger">{{$.T "action.delete"}}</button>
+        </form>
+      </details>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+<section class="card">
+  <h3>{{.T "users.create"}}</h3>
+  <form method="post" action="/admin/users" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>{{.T "login.username"}}<input name="username" required maxlength="40" pattern="[A-Za-z0-9._-]+"></label>
+    <label>{{.T "login.password"}}<input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+    <label>{{.T "col.role"}}<select name="role">{{range .Data.Roles}}<option value="{{.}}">{{$.T (print "urole." .)}}</option>{{end}}</select></label>
+    <label>{{.T "account.language"}}<select name="language"><option value="de">Deutsch</option><option value="en">English</option></select></label>
+    <button type="submit" class="primary">{{.T "users.create"}}</button>
+  </form>
+  <p class="muted small">{{.T "users.roles_hint"}}</p>
+</section>
+{{end}}

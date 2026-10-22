@@ -1,0 +1,43 @@
+{{define "content"}}
+{{with .Data}}
+<div class="page-head">
+  <h1>{{if .HiddenOnly}}{{$.T "hidden.title"}}{{else}}{{$.T "nav.rankings"}}{{end}}</h1>
+  {{if not .HiddenOnly}}<a href="/hidden{{if .EventSlug}}?event={{.EventSlug}}{{end}}">{{$.T "hidden.title"}}</a>{{end}}
+</div>
+{{if .HiddenOnly}}<p class="muted">{{$.T "hidden.hint"}}</p>{{end}}
+<form class="filters card" method="get" action="{{if .HiddenOnly}}/hidden{{else}}/rankings{{end}}" data-autosubmit>
+  {{if not .HiddenOnly}}
+  <div class="segmented" role="radiogroup" aria-label="{{$.T "rankings.direction"}}">
+    {{range .Dirs}}
+    <label><input type="radio" name="dir" value="{{.}}"{{if eq . $.Data.Dir}} checked{{end}}> {{$.T (print "dir." .)}}</label>
+    {{end}}
+  </div>
+  {{end}}
+  <label>{{$.T "nav.events"}}
+    <select name="event">
+      <option value="active"{{if eq .EventParam "active"}} selected{{end}}>{{$.T "rankings.active_event"}}</option>
+      <option value="all"{{if eq .EventParam "all"}} selected{{end}}>{{$.T "rankings.all_events"}}</option>
+      {{range .Events}}<option value="{{.Slug}}"{{if eq .Slug $.Data.EventParam}} selected{{end}}>{{.Name}} ({{dt .StartedAt}})</option>{{end}}
+    </select>
+  </label>
+  <label>{{$.T "nav.switches"}}
+    <select name="switch">
+      <option value="">{{$.T "rankings.all_switches"}}</option>
+      {{range .Switches}}<option value="{{.ID}}"{{if eq .ID $.Data.SwitchID}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  <div class="segmented" role="radiogroup" aria-label="Limit">
+    {{range .Limits}}<label><input type="radio" name="limit" value="{{.}}"{{if eq . $.Data.Limit}} checked{{end}}> Top {{.}}</label>{{end}}
+  </div>
+  <label>{{$.T "rankings.from"}}<input type="datetime-local" name="from" value="{{dtinput .From}}"></label>
+  <label>{{$.T "rankings.to"}}<input type="datetime-local" name="to" value="{{dtinput .To}}"></label>
+  {{if not .HiddenOnly}}<label class="check"><input type="checkbox" name="include_hidden" value="1"{{if .IncludeHidden}} checked{{end}}> {{$.T "rankings.include_hidden"}}</label>{{end}}
+  <noscript><button type="submit">{{$.T "action.apply"}}</button></noscript>
+</form>
+{{if .NoEvent}}
+<p class="card muted">{{$.T "rankings.no_event"}}</p>
+{{else}}
+<section class="card">{{template "ranking_rows" .View}}{{template "legend" $}}</section>
+{{end}}
+{{end}}
+{{end}}

@@ -1,0 +1,76 @@
+{{define "content"}}
+<div class="page-head">
+  <h1>{{.T "nav.dashboard"}}</h1>
+  {{if .Can "operator"}}
+    {{if .Data.Event}}
+    <form method="post" action="/events/stop" data-confirm="{{.T "events.stop_confirm"}}">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button type="submit" class="danger">{{.T "events.stop"}}</button>
+    </form>
+    {{else}}
+    <form method="post" action="/events/start" class="inline">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <input name="name" required placeholder="{{.T "events.name_placeholder"}}" aria-label="{{.T "events.name"}}">
+      <button type="submit" class="primary">{{.T "events.start"}}</button>
+    </form>
+    {{end}}
+  {{end}}
+</div>
+{{template "dashboard_live" .}}
+{{end}}
+
+{{define "dashboard_live"}}
+<div id="live" hx-get="/partials/dashboard" hx-trigger="every 15s" hx-swap="outerHTML">
+{{with .Data}}
+  {{if .Event}}
+  <section class="hero card">
+    <div>
+      <p class="eyebrow"><span class="pulse"></span> {{$.T "dashboard.active_event"}}</p>
+      <h2><a href="/events/{{.Event.Slug}}">{{.Event.Name}}</a></h2>
+      <p class="muted">{{$.T "dashboard.since"}} {{dt .Event.StartedAt}}</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">{{$.T "col.down"}}</span><span class="stat-value down">{{bytes .Summary.BytesDown}}</span><span class="stat-sub">{{bps .DownBps}}</span></div>
+      <div class="stat"><span class="stat-label">{{$.T "col.up"}}</span><span class="stat-value up">{{bytes .Summary.BytesUp}}</span><span class="stat-sub">{{bps .UpBps}}</span></div>
+      <div class="stat"><span class="stat-label">{{$.T "dashboard.clients"}}</span><span class="stat-value">{{.Summary.Clients}}</span></div>
+    </div>
+  </section>
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head"><h3>{{$.T "dashboard.top_down"}}</h3><a href="/rankings?dir=down">{{$.T "dashboard.more"}}</a></div>
+      {{template "ranking_rows" .TopDown}}
+    </section>
+    <section class="card">
+      <div class="card-head"><h3>{{$.T "dashboard.top_up"}}</h3><a href="/rankings?dir=up">{{$.T "dashboard.more"}}</a></div>
+      {{template "ranking_rows" .TopUp}}
+    </section>
+  </div>
+  {{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}</section>{{end}}
+  {{else}}
+  <section class="card empty">
+    <h2>{{$.T "dashboard.no_event"}}</h2>
+    <p class="muted">{{$.T "dashboard.no_event_hint"}}</p>
+    <p class="muted small">{{$.T "dashboard.live"}}: {{bps .DownBps}} ↓ · {{bps .UpBps}} ↑</p>
+  </section>
+  {{end}}
+
+  <section class="card">
+    <div class="card-head"><h3>{{$.T "nav.switches"}}</h3><a href="/switches">{{$.T "dashboard.more"}}</a></div>
+    {{if .Switches}}
+    <ul class="switch-status">
+      {{range .Switches}}
+      <li>
+        <span class="dot {{if not .Enabled}}dot-off{{else if .LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span>
+        <a href="/switches/{{.ID}}">{{.Name}}</a>
+        <span class="muted small">{{.Host}} · {{if .LastPollAt}}{{ago (deref .LastPollAt)}}{{else}}{{$.T "switches.never"}}{{end}}</span>
+        {{if and .Enabled (not .LastPollOK) .LastError}}<span class="error small">{{.LastError}}</span>{{end}}
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p class="muted">{{$.T "switches.none"}} {{if $.Can "admin"}}<a href="/switches/new">{{$.T "switches.add"}}</a>{{end}}</p>
+    {{end}}
+  </section>
+{{end}}
+</div>
+{{end}}

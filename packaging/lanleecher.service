@@ -1,0 +1,40 @@
+[Unit]
+Description=LANLeecher – LAN traffic rankings via SNMP
+Documentation=https://github.com/lan-dot-party/LANLeecher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lanleecher
+Group=lanleecher
+Environment="LANLEECHER_CONFIG=/etc/lanleecher/config.yaml"
+ExecStart=/usr/bin/lanleecher server
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+StateDirectory=lanleecher
+StateDirectoryMode=0750
+WorkingDirectory=/var/lib/lanleecher
+
+# Hardening: only /var/lib/lanleecher is writable. SNMP, NetBIOS, mDNS and
+# LLMNR use unprivileged source ports; local-neigh reads /proc/net/arp.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/lanleecher
+
+[Install]
+WantedBy=multi-user.target

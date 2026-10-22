@@ -1,0 +1,22 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "admin.settings"}}</h1>
+<p class="muted">{{.T "settings.hint"}}</p>
+{{with .Data}}
+<section class="card">
+<table class="kv">
+  <tr><th>{{$.T "settings.public_url"}}</th><td><code>{{.Cfg.PublicURL}}</code>{{if .Cfg.SecureCookies}} <span class="badge">Secure-Cookie</span>{{end}}</td></tr>
+  <tr><th>Listen</th><td><code>{{.Cfg.Listen}}</code></td></tr>
+  <tr><th>{{$.T "settings.storage"}}</th><td><code>{{.Cfg.Storage.Type}}</code> {{.StoragePath}} · Schema v{{.SchemaVersion}}</td></tr>
+  <tr><th>{{$.T "settings.polling"}}</th><td>{{.Cfg.Polling.Interval}} · FDB {{.Cfg.Polling.FDBInterval}} · Timeout {{.Cfg.Polling.Timeout}} · Uplink ab {{.Cfg.Polling.UplinkMACThreshold}} MACs</td></tr>
+  <tr><th>{{$.T "settings.resolver_order"}}</th><td>{{range $i, $r := .Cfg.Resolver.Order}}{{if $i}} → {{end}}<code>{{$r}}</code>{{end}}</td></tr>
+  <tr><th>{{$.T "settings.hostname_priority"}}</th><td>{{range $i, $r := .Cfg.Resolver.HostnamePriority}}{{if $i}} › {{end}}<code>{{$r}}</code>{{end}}</td></tr>
+  <tr><th>{{$.T "settings.probes"}}</th><td>{{.Cfg.Resolver.ProbeInterval}} · {{.Cfg.Resolver.ProbeRate}}/s · Timeout {{.Cfg.Resolver.ProbeTimeout}}</td></tr>
+  <tr><th>{{$.T "nav.board"}}</th><td>{{if .Cfg.Board.Enabled}}{{$.T "settings.on"}}{{if .Cfg.Board.Public}} ({{$.T "settings.public"}}){{end}}{{else}}{{$.T "settings.off"}}{{end}}</td></tr>
+  <tr><th>Prometheus</th><td>{{if .Cfg.API.MetricsEnabled}}<code>/api/v1/metrics</code>{{else}}{{$.T "settings.off"}}{{end}}</td></tr>
+  <tr><th>API Rate-Limit</th><td>{{.Cfg.API.RateLimit}}/s, Burst {{.Cfg.API.RateBurst}}</td></tr>
+  <tr><th>Version</th><td>{{.Version}}</td></tr>
+</table>
+</section>
+{{end}}
+{{end}}

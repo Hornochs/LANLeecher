@@ -1,0 +1,160 @@
+name: Release
+
+# Publishing a release in the GitHub web interface (tag vX.Y.Z, notes written
+# there) triggers this workflow. It builds binaries, .deb/.rpm/Arch/.apk
+# packages and Docker images with GoReleaser, installs every package in a clean
+# container, and only then attaches the files to the release, pushes the images
+# and writes a build provenance attestation.
+#
+# Pull requests that touch the packaging run the same build and tests as a
+# snapshot without publishing anything.
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - ".goreleaser.yaml"
+      - "Dockerfile.goreleaser"
+      - "packaging/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check the tag
+        if: github.event_name == 'release'
+        run: |
+          case "$GITHUB_REF_NAME" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::release tag must look like v1.2.3, got $GITHUB_REF_NAME"; exit 1 ;;
+          esac
+      - name: Test
+        run: go test -short ./...
+      - name: Build with GoReleaser (no publishing)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: >-
+            release --clean --skip=publish,docker
+            ${{ github.event_name != 'release' && '--snapshot' || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+            dist/*.apk
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          retention-days: 7
+
+  test:
+    name: Install on ${{ matrix.image }}
+    needs: build
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {image: "debian:12", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
+          - {image: "debian:13", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
+          - {image: "ubuntu:24.04", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
+          - {image: "fedora:latest", format: rpm, setup: "dnf install -y curl shadow-utils"}
+          - {image: "rockylinux:9", format: rpm, setup: "dnf install -y --allowerasing curl shadow-utils"}
+          - {image: "archlinux:latest", format: archlinux, setup: "pacman -Syu --noconfirm curl"}
+          - {image: "alpine:3.21", format: apk, setup: "apk add --no-cache curl coreutils"}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install test requirements
+        run: ${{ matrix.setup }}
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Install, start and remove
+        run: |
+          case "${{ matrix.format }}" in
+            deb) pkg=$(ls "$PWD"/dist/lanleecher_*_amd64.deb) ;;
+            rpm) pkg=$(ls "$PWD"/dist/lanleecher_*_amd64.rpm) ;;
+            archlinux) pkg=$(ls "$PWD"/dist/lanleecher_*_amd64.pkg.tar.zst) ;;
+            apk) pkg=$(ls "$PWD"/dist/lanleecher_*_amd64.apk) ;;
+          esac
+          sh packaging/test-install.sh "${{ matrix.format }}" "$pkg"
+
+  publish:
+    name: Publish
+    if: github.event_name == 'release'
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # attach files to the release
+      packages: write # push images to ghcr.io
+      id-token: write # sign the provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The build is reproducible (-trimpath, commit timestamps), so this
+      # produces the same files the test job installed.
+      - name: Release with GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-checksums: dist/SHA256SUMS
+      - name: Summary
+        run: |
+          {
+            echo "## LANLeecher $GITHUB_REF_NAME"
+            echo
+            echo '```bash'
+            echo "# Debian/Ubuntu"
+            echo "curl -LO https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/lanleecher_${GITHUB_REF_NAME#v}_amd64.deb"
+            echo "sudo apt install ./lanleecher_${GITHUB_REF_NAME#v}_amd64.deb"
+            echo
+            echo "# Docker"
+            owner=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+            echo "docker pull ghcr.io/$owner/lanleecher:${GITHUB_REF_NAME#v}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

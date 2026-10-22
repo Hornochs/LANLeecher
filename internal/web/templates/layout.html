@@ -1,0 +1,43 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false}'>
+<title>{{if .Title}}{{.Title}} · {{end}}LANLeecher</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body{{if .CSRF}} hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'{{end}}>
+{{if .User}}
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="24" height="24"> LANLeecher</a>
+  <nav class="nav">
+    <a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>{{.T "nav.dashboard"}}</a>
+    <a href="/rankings" {{if eq .Nav "rankings"}}class="active"{{end}}>{{.T "nav.rankings"}}</a>
+    <a href="/events" {{if eq .Nav "events"}}class="active"{{end}}>{{.T "nav.events"}}</a>
+    <a href="/switches" {{if eq .Nav "switches"}}class="active"{{end}}>{{.T "nav.switches"}}</a>
+    <a href="/merges" {{if eq .Nav "merges"}}class="active"{{end}}>{{.T "nav.merges"}}</a>
+    {{if .Board}}<a href="/board" target="_blank" rel="noopener">{{.T "nav.board"}}</a>{{end}}
+    {{if .Can "admin"}}<a href="/admin/users" {{if eq .Nav "admin"}}class="active"{{end}}>{{.T "nav.admin"}}</a>{{end}}
+  </nav>
+  <form class="search" action="/search" method="get" role="search">
+    <input type="search" name="q" placeholder="{{.T "search.placeholder"}}" aria-label="{{.T "nav.search"}}">
+  </form>
+  <div class="user">
+    <a href="/account">{{.User.Username}}</a>
+    <form action="/logout" method="post"><input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button class="link" type="submit">{{.T "nav.logout"}}</button></form>
+  </div>
+</header>
+{{end}}
+<main class="container">
+{{if .Flash}}<p class="alert alert-ok">{{.Flash}}</p>{{end}}
+{{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
+{{template "content" .}}
+</main>
+<footer class="footer">LANLeecher {{.Version}} · <a href="/api/">API</a> · MIT</footer>
+</body>
+</html>{{end}}

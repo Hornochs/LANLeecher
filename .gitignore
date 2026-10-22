@@ -1,0 +1,17 @@
+# Credentials and local configuration – never commit
+.env
+/config.yaml
+/secret.key
+
+# Data and build output
+/data/
+/bin/
+/dist/
+*.db
+*.db-shm
+*.db-wal
+
+# Tools
+.venv/
+.vscode/
+coverage.out

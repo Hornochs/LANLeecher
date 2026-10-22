@@ -1,0 +1,24 @@
+# LANLeecher image for GoReleaser (dockers_v2): the pre-built binary of each
+# platform lies in $TARGETPLATFORM/ of the build context.
+FROM alpine:3.21
+
+ARG TARGETPLATFORM
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    addgroup -S lanleecher && adduser -S -D -H -h /var/lib/lanleecher -G lanleecher lanleecher && \
+    mkdir -p /etc/lanleecher /var/lib/lanleecher && chown lanleecher:lanleecher /var/lib/lanleecher
+
+COPY $TARGETPLATFORM/lanleecher /usr/bin/lanleecher
+COPY packaging/docker-config.yaml /etc/lanleecher/config.yaml
+
+ENV LANLEECHER_CONFIG=/etc/lanleecher/config.yaml
+WORKDIR /var/lib/lanleecher
+VOLUME /var/lib/lanleecher
+USER lanleecher
+EXPOSE 9040
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:9040/health || exit 1
+
+ENTRYPOINT ["lanleecher"]
+CMD ["server"]

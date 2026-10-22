@@ -1,0 +1,53 @@
+# LANLeecher configuration
+# Switches, ports, users and API tokens live in the database
+# and are managed in the web UI.
+
+# HTTP listen address. Behind a reverse proxy, bind to localhost only.
+listen: 127.0.0.1:9040
+
+# Public URL. With https://, session cookies are marked Secure.
+public_url: http://127.0.0.1:9040
+
+# Proxies whose X-Real-IP/X-Forwarded-For headers are trusted.
+trusted_proxies: [127.0.0.1, "::1"]
+
+# AES-256 key for credentials in the database (created if missing).
+# Relative paths are relative to this file.
+secret_key_file: secret.key
+
+storage:
+  type: sqlite                # sqlite or postgres
+  path: data/lanleecher.db    # sqlite only
+  # url: postgres://lanleecher:secret@localhost/lanleecher?sslmode=disable
+
+log:
+  level: info                 # debug, info, warn, error
+  format: text                # text or json
+
+polling:
+  interval: 30s               # counter polls, can be overridden per switch
+  fdb_interval: 60s           # forwarding table (MAC -> port)
+  timeout: 3s
+  retries: 1
+  uplink_mac_threshold: 10    # more MACs than this: "probably uplink"
+
+resolver:
+  order: [snmp-arp, local-neigh, netbios, mdns, dns-ptr]
+  hostname_priority: [dhcp, netbios, mdns, llmnr, dns-ptr]
+  probe_interval: 10m
+  probe_rate: 20              # name queries per second
+  probe_timeout: 1s
+
+board:
+  enabled: false              # beamer view at /board
+  public: false               # reachable without login or token
+
+api:
+  metrics_enabled: true       # /api/v1/metrics (Prometheus)
+  rate_limit: 10              # requests per second and token
+  rate_burst: 30
+
+# Built-in TLS (otherwise use a reverse proxy):
+# tls:
+#   cert_file: /etc/lanleecher/tls.crt
+#   key_file: /etc/lanleecher/tls.key
