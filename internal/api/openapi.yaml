@@ -201,11 +201,12 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [device_id, name, mac, ip, hostname, last_seen, match]
+                      required: [device_id, name, mac, ip, hostname, vendor, last_seen, match]
                       properties:
                         device_id: {type: integer}
                         name: {type: string}
                         mac: {type: string}
+                        vendor: {type: string, description: "IEEE OUI vendor; empty for randomized (locally administered) MACs"}
                         ip: {type: string}
                         hostname: {type: string}
                         last_seen: {type: string, format: date-time}
@@ -522,6 +523,7 @@ components:
         macs: {type: array, items: {type: string}, description: "read:clients only"}
         ip: {type: string, description: "read:clients only"}
         hostname: {type: string, description: "read:clients only"}
+        vendor: {type: string, description: "read:clients only; IEEE OUI vendor of the device's newest MAC"}
     History:
       type: object
       required: [mac, value, source, first_seen, last_seen]
@@ -533,9 +535,10 @@ components:
         last_seen: {type: string, format: date-time}
     Client:
       type: object
-      required: [mac, device_id, name, hostname, ip, macs, hidden, events, ip_history, hostname_history, ports]
+      required: [mac, vendor, device_id, name, hostname, ip, macs, hidden, events, ip_history, hostname_history, ports]
       properties:
         mac: {type: string}
+        vendor: {type: string, description: "IEEE OUI vendor of this MAC; empty for randomized (locally administered) MACs"}
         device_id: {type: integer}
         name: {type: string}
         hostname: {type: string}

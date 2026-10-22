@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lan-dot-party/lanleecher/internal/accounting"
+	"github.com/lan-dot-party/lanleecher/internal/oui"
 )
 
 func roleOf(s string) accounting.Role { return accounting.Role(s) }
@@ -84,9 +85,43 @@ func (tx *Tx) ensureMAC(ctx context.Context, mac string, at time.Time) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.tx.ExecContext(ctx, `INSERT INTO macs (mac, device_id, first_seen, last_seen) VALUES (?, ?, ?, ?)`,
-		mac, devID, unix(at), unix(at))
+	_, err = tx.tx.ExecContext(ctx, `INSERT INTO macs (mac, device_id, vendor, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)`,
+		mac, devID, oui.LookupString(mac), unix(at), unix(at))
 	return err
+}
+
+// RefreshVendors updates the vendor names of all MACs from the embedded OUI
+// data (after an update of LANLeecher brought newer data). It returns the
+// number of changed rows.
+func (db *DB) RefreshVendors(ctx context.Context) (int, error) {
+	rows, err := db.sql.QueryContext(ctx, `SELECT mac, vendor FROM macs`)
+	if err != nil {
+		return 0, err
+	}
+	changes := map[string]string{}
+	for rows.Next() {
+		var mac, vendor string
+		if err := rows.Scan(&mac, &vendor); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		if v := oui.LookupString(mac); v != vendor {
+			changes[mac] = v
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil || len(changes) == 0 {
+		return 0, err
+	}
+	err = db.InTx(ctx, func(tx *Tx) error {
+		for mac, v := range changes {
+			if _, err := tx.tx.ExecContext(ctx, `UPDATE macs SET vendor = ? WHERE mac = ?`, v, mac); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return len(changes), err
 }
 
 // EnsureMAC makes sure a MAC exists (used by resolvers for MACs seen only via ARP).
@@ -181,6 +216,8 @@ func (db *DB) CurrentMACs(ctx context.Context, switchID int64, since time.Time) 
 type MACInfo struct {
 	MAC      string
 	DeviceID int64
+	// Vendor from the IEEE OUI registry; empty for randomized MACs.
+	Vendor   string
 	IP       string
 	Hostname string
 	LastSeen time.Time
@@ -193,14 +230,14 @@ func (db *DB) MACInfos(ctx context.Context, macs []string) (map[string]MACInfo, 
 		return out, nil
 	}
 	ph, args := inList(macs)
-	rows, err := db.sql.QueryContext(ctx, `SELECT mac, device_id, last_seen FROM macs WHERE mac IN (`+ph+`)`, args...)
+	rows, err := db.sql.QueryContext(ctx, `SELECT mac, device_id, vendor, last_seen FROM macs WHERE mac IN (`+ph+`)`, args...)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var m MACInfo
 		var seen int64
-		if err := rows.Scan(&m.MAC, &m.DeviceID, &seen); err != nil {
+		if err := rows.Scan(&m.MAC, &m.DeviceID, &m.Vendor, &seen); err != nil {
 			rows.Close()
 			return nil, err
 		}

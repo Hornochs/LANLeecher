@@ -55,6 +55,9 @@ python3 testdata/demo/seed_history.py data/lanleecher.db
 It adds six hours of varied traffic to the running event and two earlier LAN parties. All data is
 invented and the result is reproducible. The screenshots in `docs/images/` were made this way.
 
+MAC vendor names are embedded from the IEEE registries. Refresh them now and then with
+`go run ./tools/genoui` and commit `internal/oui/oui.txt.gz`.
+
 ## Rules
 
 - **English** everywhere: code, comments, docs, commit messages. UI strings go through

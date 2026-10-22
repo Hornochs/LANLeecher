@@ -14,6 +14,7 @@
         {{else}}<span class="badge">{{$.P.T "type.port_group"}}</span> {{.Name}}{{end}}
         {{if .Hidden}}<span class="badge badge-muted">{{$.P.T "label.hidden"}}</span>{{end}}
         {{if and .Hostname (ne .Hostname .Name)}}<span class="muted small">{{.Hostname}}</span>{{end}}
+        {{if and (eq .Type "mac") (not .Hostname) .Vendor}}<span class="muted small">{{.Vendor}}</span>{{end}}
         {{if eq .Type "port_group"}}<span class="muted small">{{len .MACs}} MACs</span>{{end}}
         <svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">
           <rect class="bar-down" width="{{pct .BytesDown $.Max}}" height="2"/>

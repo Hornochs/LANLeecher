@@ -23,6 +23,10 @@ internal/web/            html/template + htmx, embedded assets, i18n (en/de) in 
 internal/auth/           Argon2id, tokens (llk_…), login lockout, rate limit
 packaging/               Package config, systemd unit, sysusers, install scripts, install test
 tools/gendocs/           Generates docs/configuration.md, docs/config.schema.json, docs/llms-full.txt
+tools/genoui/            Refreshes internal/oui/oui.txt.gz from the IEEE registries
+tools/keasim/            Kea API simulator (Kea 2.x Control Agent and 3.x sockets)
+internal/kea/            Kea DHCP client, certificate pinning, lease polling
+internal/oui/            MAC vendor lookup (embedded IEEE data)
 docs/, examples/         User docs, ADRs, API guide; runnable API examples
 ```
 

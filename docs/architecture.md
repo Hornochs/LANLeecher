@@ -34,6 +34,7 @@ web UI and the API, all sharing one SQLite database.
 | `internal/accounting` | `Delta` (reset, wrap, plausibility), `Attribute` (who gets the traffic), `ClientDirection` |
 | `internal/scheduler` | poll loop per switch, booking into the active event, live rates |
 | `internal/resolver` | address sources and name probes, hostname history, merge suggestions |
+| `internal/oui` | IEEE vendor names for MAC addresses (embedded data, longest-prefix lookup) |
 | `internal/kea` | Kea management API client (Kea 2.x Control Agent and 3.x sockets), TLS pinning, lease polling; `keasim` simulator |
 | `internal/store` | SQLite access, embedded goose migrations, rankings, search |
 | `internal/board` | board payload shared by `/board` and `/api/v1/board`, rank changes, SSE fan-out |
@@ -42,6 +43,7 @@ web UI and the API, all sharing one SQLite database.
 | `internal/api` | REST API v1, OpenAPI document, API docs page |
 | `internal/web` | server-rendered UI: templates, htmx, i18n, SVG charts |
 | `tools/gendocs` | generates the configuration reference, the config JSON Schema and `llms-full.txt` |
+| `tools/genoui` | refreshes the embedded IEEE OUI data |
 | `tools/keasim` | Kea API simulator for trying the DHCP integration without Kea |
 
 ## A poll cycle

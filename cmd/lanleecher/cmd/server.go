@@ -43,6 +43,12 @@ var serverCmd = &cobra.Command{
 		log := e.log
 		log.Info("starting lanleecher", "version", version.GetVersion(), "listen", e.cfg.Listen, "public_url", e.cfg.PublicURL)
 
+		if n, err := e.db.RefreshVendors(ctx); err != nil {
+			log.Warn("refresh vendor names", "err", err)
+		} else if n > 0 {
+			log.Info("vendor names refreshed", "macs", n)
+		}
+
 		a := app.New(e.cfg, e.db, e.key, log)
 		a.Resolver = resolver.New(e.db, e.cfg.Resolver, log)
 		a.Sched = scheduler.New(e.db, e.key, e.cfg, a.Resolver, log)

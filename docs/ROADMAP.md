@@ -12,13 +12,12 @@ The full design is in [PROJECT_PLAN.md](../PROJECT_PLAN.md). Status of the miles
 | 6 | Events: lifecycle, totals, 5-minute buckets | done |
 | 7 | Auth & web UI (English/German) | done |
 | 8 | REST API, board with SSE, Prometheus, OpenAPI | done |
-| 9 | Resolvers & history, Kea DHCP (2.x and 3.x) | done |
+| 9 | Resolvers & history, Kea DHCP (2.x and 3.x), MAC vendor names | done |
 | 10 | Packages, Docker, release workflow | done |
 | 11 | Documentation & polish | done – real-LAN test pending |
 
 ## Next
 
-- **Vendor names for MAC addresses** (OUI) in device pages, port lists, search and API.
 - **API response validation** in CI: every handler response checked against the OpenAPI document
   (`kin-openapi`).
 - **Upgrade test** in the release workflow, from the previous release to the new one.

@@ -53,7 +53,7 @@
       <td>{{if $.Can "operator"}}<input type="checkbox" name="hidden_{{.Port.ID}}" value="1"{{if .Port.Hidden}} checked{{end}} aria-label="{{$.T "ports.hide"}}">{{else if .Port.Hidden}}✓{{end}}</td>
       <td class="small">
         {{if eq (print .Port.Role) "uplink"}}<span class="muted">{{.Port.MACCount}} MACs</span>
-        {{else}}{{range .MACs}}<div><a href="/devices/{{.DeviceID}}">{{if .Hostname}}{{.Hostname}}{{else}}<code>{{.MAC}}</code>{{end}}</a>{{if .IP}} <span class="muted">{{.IP}}</span>{{end}}</div>{{else}}<span class="muted">–</span>{{end}}
+        {{else}}{{range .MACs}}<div><a href="/devices/{{.DeviceID}}">{{if .Hostname}}{{.Hostname}}{{else}}<code>{{.MAC}}</code>{{end}}</a>{{if .IP}} <span class="muted">{{.IP}}</span>{{end}}{{if and .Vendor (not .Hostname)}} <span class="muted">{{.Vendor}}</span>{{end}}</div>{{else}}<span class="muted">–</span>{{end}}
         {{end}}
       </td>
       <td class="num nowrap">{{if or .Traffic.BytesDown .Traffic.BytesUp}}{{bytes .Traffic.BytesDown}} ↓<br>{{bytes .Traffic.BytesUp}} ↑{{else}}–{{end}}</td>

@@ -30,6 +30,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Kea 3.x via the servers' HTTP control sockets, read-only command allowlist, HTTPS with certificate
   verification during the handshake, one-click "trust this certificate" with a warning when it
   changes, optional mutual TLS. `tools/keasim` simulates Kea for trying it out.
+- Vendor names for MAC addresses from the IEEE registries (MA-L, MA-M, MA-S), embedded in the
+  binary and shown on device pages, port lists, search results and rankings, and as `vendor` in the
+  client API. Randomized MACs get no vendor. `tools/genoui` refreshes the data.
 - Light and dark theme: automatic (follows the operating system), or chosen per user with the
   toggle in the top bar or on the account page.
 - REST API v1 with scoped bearer tokens (`read:rankings`, `read:clients`, `write:events`,

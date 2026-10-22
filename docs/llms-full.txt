@@ -82,7 +82,8 @@ than `polling.uplink_mac_threshold` or an LLDP neighbor; an admin confirms it by
 
 - A **MAC** address is the key of a client. MACs are normalized to `aa:bb:cc:dd:ee:ff`; the API
   accepts any notation. A MAC whose second-lowest bit of the first byte is set is *locally
-  administered* and often randomized.
+  administered* and often randomized. All other MACs show the **vendor** the IEEE assigned the address
+  block to (e.g. "Intel Corporate", "Apple, Inc."); randomized MACs have no vendor.
 - A **device** groups one or more MACs that belong to one machine. Every new MAC gets its own device;
   an operator can merge devices (e.g. after a NIC change) and split a MAC off again. Rankings show
   devices, not single MACs.
@@ -214,6 +215,8 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 - `bytes_down` is traffic *to* the client, `bytes_up` traffic *from* the client.
 - MAC addresses are accepted in any notation (`AA-BB-CC-DD-EE-FF`, `aabb.ccdd.eeff`, …) and returned
   as `aa:bb:cc:dd:ee:ff`.
+- With `read:clients`, devices carry `vendor`: the IEEE OUI vendor of the MAC, empty for randomized
+  (locally administered) addresses.
 - `?event=` takes an event slug, `active` (default) or – for rankings – `all`.
 - Hidden ports and devices are left out unless `include_hidden=true`; then they carry `"hidden": true`.
 
@@ -642,11 +645,12 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [device_id, name, mac, ip, hostname, last_seen, match]
+                      required: [device_id, name, mac, ip, hostname, vendor, last_seen, match]
                       properties:
                         device_id: {type: integer}
                         name: {type: string}
                         mac: {type: string}
+                        vendor: {type: string, description: "IEEE OUI vendor; empty for randomized (locally administered) MACs"}
                         ip: {type: string}
                         hostname: {type: string}
                         last_seen: {type: string, format: date-time}
@@ -963,6 +967,7 @@ components:
         macs: {type: array, items: {type: string}, description: "read:clients only"}
         ip: {type: string, description: "read:clients only"}
         hostname: {type: string, description: "read:clients only"}
+        vendor: {type: string, description: "read:clients only; IEEE OUI vendor of the device's newest MAC"}
     History:
       type: object
       required: [mac, value, source, first_seen, last_seen]
@@ -974,9 +979,10 @@ components:
         last_seen: {type: string, format: date-time}
     Client:
       type: object
-      required: [mac, device_id, name, hostname, ip, macs, hidden, events, ip_history, hostname_history, ports]
+      required: [mac, vendor, device_id, name, hostname, ip, macs, hidden, events, ip_history, hostname_history, ports]
       properties:
         mac: {type: string}
+        vendor: {type: string, description: "IEEE OUI vendor of this MAC; empty for randomized (locally administered) MACs"}
         device_id: {type: integer}
         name: {type: string}
         hostname: {type: string}

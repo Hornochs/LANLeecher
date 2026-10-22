@@ -5,7 +5,7 @@
     <p class="eyebrow">{{$.T "device.title"}} #{{.Device.ID}}</p>
     <h1>{{.Label.Name}} {{if .Device.Hidden}}<span class="badge badge-muted">{{$.T "label.hidden"}}</span>{{end}}</h1>
     <p class="muted">{{if .Label.Hostname}}{{.Label.Hostname}} · {{end}}{{if .Label.IP}}{{.Label.IP}} · {{end}}
-      {{range $i, $m := .Device.MACs}}{{if $i}}, {{end}}<code>{{$m.MAC}}</code>{{if localmac $m.MAC}} <span class="badge badge-muted" title="{{$.T "device.local_mac_hint"}}">{{$.T "device.local_mac"}}</span>{{end}}{{end}}</p>
+      {{range $i, $m := .Device.MACs}}{{if $i}}, {{end}}<code>{{$m.MAC}}</code>{{if $m.Vendor}} <span class="small">({{$m.Vendor}})</span>{{end}}{{if localmac $m.MAC}} <span class="badge badge-muted" title="{{$.T "device.local_mac_hint"}}">{{$.T "device.local_mac"}}</span>{{end}}{{end}}</p>
   </div>
 </div>
 

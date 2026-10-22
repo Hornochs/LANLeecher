@@ -7,7 +7,7 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 > **Status: pre-release.** Polling via SNMP v2c/v3, accounting per MAC and event, uplink detection,
 > IP and hostname discovery (Kea DHCP, ARP, NetBIOS, mDNS, LLMNR, DNS), web UI in English and German,
 > beamer view, REST API, packages and Docker image. Tested with TP-Link Omada and JetStream switches.
-> Next up: vendor names for MAC addresses. Progress is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
+> Next up: the first real LAN party. Progress is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ![The dashboard during an event: totals, live throughput, top downloaders and uploaders](docs/images/dashboard.png)
 
@@ -26,7 +26,8 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 - **Switch and port management** with a connection test, port roles (client, multi-client, server,
   uplink), labels, and hints for ports that look like uplinks (LLDP neighbor, many MACs).
 - **Hostnames from Kea DHCP** (Kea 2.x and 3.x, read-only, certificate pinning) and from the
-  network itself (NetBIOS, mDNS, LLMNR, DNS), with history per device.
+  network itself (NetBIOS, mDNS, LLMNR, DNS), with history per device; vendor names from the IEEE
+  registry for MAC addresses.
 - **Hiding** of game servers, caches and uplinks from rankings – they are still counted, and hiding
   applies retroactively.
 - **Events** to start and stop, compare and export as CSV or JSON.
@@ -116,4 +117,5 @@ go test ./...
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). MAC vendor names come from the public IEEE Registration Authority listings
+(MA-L, MA-M, MA-S), refreshed with `tools/genoui`.

@@ -16,6 +16,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/auth"
 	"github.com/lan-dot-party/lanleecher/internal/board"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
+	"github.com/lan-dot-party/lanleecher/internal/oui"
 	"github.com/lan-dot-party/lanleecher/internal/store"
 )
 
@@ -33,6 +34,7 @@ type RankingEntry struct {
 	MACs     []string `json:"macs,omitempty"`
 	IP       string   `json:"ip,omitempty"`
 	Hostname string   `json:"hostname,omitempty"`
+	Vendor   string   `json:"vendor,omitempty"`
 }
 
 // EventJSON is an event in responses.
@@ -101,7 +103,7 @@ func (a *API) rankings(w http.ResponseWriter, r *http.Request) {
 			e.Hidden = &h
 		}
 		if clients {
-			e.MACs, e.IP, e.Hostname = row.MACs, row.IP, row.Hostname
+			e.MACs, e.IP, e.Hostname, e.Vendor = row.MACs, row.IP, row.Hostname, row.Vendor
 			if row.Type == "mac" && len(row.MACs) > 0 {
 				e.MAC = row.MACs[0]
 			}
@@ -261,7 +263,7 @@ func (a *API) clientByMAC(w http.ResponseWriter, r *http.Request) {
 	}
 	l := labels[devID]
 	writeJSON(w, http.StatusOK, map[string]any{
-		"mac": mac, "device_id": devID, "name": l.Name, "hostname": l.Hostname, "ip": l.IP, "macs": macs,
+		"mac": mac, "vendor": oui.LookupString(mac), "device_id": devID, "name": l.Name, "hostname": l.Hostname, "ip": l.IP, "macs": macs,
 		"hidden": dev.Hidden, "events": evs, "ip_history": historyJSON(ips), "hostname_history": historyJSON(names),
 		"ports": ports,
 	})
@@ -340,12 +342,13 @@ func (a *API) searchClients(w http.ResponseWriter, r *http.Request) {
 		MAC      string    `json:"mac"`
 		IP       string    `json:"ip"`
 		Hostname string    `json:"hostname"`
+		Vendor   string    `json:"vendor"`
 		LastSeen time.Time `json:"last_seen"`
 		Match    string    `json:"match"`
 	}
 	out := make([]hit, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, hit{h.DeviceID, h.Name, h.MAC, h.IP, h.Hostname, h.LastSeen, h.Match})
+		out = append(out, hit{h.DeviceID, h.Name, h.MAC, h.IP, h.Hostname, h.Vendor, h.LastSeen, h.Match})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"query": q, "results": out})
 }

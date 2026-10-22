@@ -38,6 +38,8 @@ type RankEntry struct {
 	MACs      []string
 	IP        string
 	Hostname  string
+	// Vendor of the newest MAC (devices only).
+	Vendor string
 }
 
 // Total returns down + up.
@@ -136,7 +138,7 @@ func (db *DB) Rankings(ctx context.Context, q RankingQuery) ([]RankEntry, error)
 		e := &out[i]
 		if e.Type == "mac" {
 			l := devices[e.Key]
-			e.Name, e.MACs, e.IP, e.Hostname = l.Name, l.MACs, l.IP, l.Hostname
+			e.Name, e.MACs, e.IP, e.Hostname, e.Vendor = l.Name, l.MACs, l.IP, l.Hostname, l.Vendor
 		} else {
 			l := groups[e.Key]
 			e.Name, e.MACs = l.Name, l.MACs
@@ -151,6 +153,7 @@ type Label struct {
 	MACs     []string
 	IP       string
 	Hostname string
+	Vendor   string
 }
 
 // DeviceLabels returns display labels for devices: display name, else the
@@ -194,6 +197,9 @@ func (db *DB) DeviceLabels(ctx context.Context, ids []int64) (map[int64]Label, e
 			}
 			if l.IP == "" {
 				l.IP = infos[mac].IP
+			}
+			if l.Vendor == "" {
+				l.Vendor = infos[mac].Vendor
 			}
 		}
 		switch {
@@ -269,6 +275,7 @@ type SearchHit struct {
 	MAC      string
 	IP       string
 	Hostname string
+	Vendor   string
 	LastSeen time.Time
 	// Match says which field matched: mac, ip or hostname.
 	Match string
@@ -333,7 +340,7 @@ func (db *DB) Search(ctx context.Context, q string, limit int) ([]SearchHit, err
 			continue
 		}
 		out = append(out, SearchHit{DeviceID: i.DeviceID, Name: labels[i.DeviceID].Name, MAC: mac, IP: i.IP,
-			Hostname: i.Hostname, LastSeen: i.LastSeen, Match: kind})
+			Hostname: i.Hostname, Vendor: i.Vendor, LastSeen: i.LastSeen, Match: kind})
 	}
 	sort.Slice(out, func(a, b int) bool { return out[a].LastSeen.After(out[b].LastSeen) })
 	if limit > 0 && len(out) > limit {

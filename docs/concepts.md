@@ -38,7 +38,8 @@ than `polling.uplink_mac_threshold` or an LLDP neighbor; an admin confirms it by
 
 - A **MAC** address is the key of a client. MACs are normalized to `aa:bb:cc:dd:ee:ff`; the API
   accepts any notation. A MAC whose second-lowest bit of the first byte is set is *locally
-  administered* and often randomized.
+  administered* and often randomized. All other MACs show the **vendor** the IEEE assigned the address
+  block to (e.g. "Intel Corporate", "Apple, Inc."); randomized MACs have no vendor.
 - A **device** groups one or more MACs that belong to one machine. Every new MAC gets its own device;
   an operator can merge devices (e.g. after a NIC change) and split a MAC off again. Rankings show
   devices, not single MACs.

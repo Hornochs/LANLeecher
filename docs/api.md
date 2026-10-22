@@ -37,6 +37,8 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 - `bytes_down` is traffic *to* the client, `bytes_up` traffic *from* the client.
 - MAC addresses are accepted in any notation (`AA-BB-CC-DD-EE-FF`, `aabb.ccdd.eeff`, …) and returned
   as `aa:bb:cc:dd:ee:ff`.
+- With `read:clients`, devices carry `vendor`: the IEEE OUI vendor of the MAC, empty for randomized
+  (locally administered) addresses.
 - `?event=` takes an event slug, `active` (default) or – for rankings – `all`.
 - Hidden ports and devices are left out unless `include_hidden=true`; then they carry `"hidden": true`.
 

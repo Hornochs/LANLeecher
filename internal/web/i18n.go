@@ -32,6 +32,7 @@ var messages = map[string][2]string{
 	"col.created":    {"Erstellt", "Created"},
 	"col.role":       {"Rolle", "Role"},
 	"col.status":     {"Status", "Status"},
+	"col.vendor":     {"Hersteller", "Vendor"},
 
 	"type.port_group": {"Port-Gruppe", "Port group"},
 	"label.hidden":    {"ausgeblendet", "hidden"},

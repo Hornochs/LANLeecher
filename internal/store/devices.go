@@ -20,6 +20,7 @@ type Device struct {
 // DeviceMAC is a MAC of a device.
 type DeviceMAC struct {
 	MAC       string
+	Vendor    string
 	FirstSeen time.Time
 	LastSeen  time.Time
 }
@@ -37,7 +38,7 @@ func (db *DB) GetDevice(ctx context.Context, id int64) (*Device, error) {
 		return nil, err
 	}
 	d.CreatedAt = fromUnix(created)
-	rows, err := db.sql.QueryContext(ctx, `SELECT mac, first_seen, last_seen FROM macs WHERE device_id = ? ORDER BY last_seen DESC`, id)
+	rows, err := db.sql.QueryContext(ctx, `SELECT mac, vendor, first_seen, last_seen FROM macs WHERE device_id = ? ORDER BY last_seen DESC`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func (db *DB) GetDevice(ctx context.Context, id int64) (*Device, error) {
 	for rows.Next() {
 		var m DeviceMAC
 		var first, last int64
-		if err := rows.Scan(&m.MAC, &first, &last); err != nil {
+		if err := rows.Scan(&m.MAC, &m.Vendor, &first, &last); err != nil {
 			return nil, err
 		}
 		m.FirstSeen, m.LastSeen = fromUnix(first), fromUnix(last)
