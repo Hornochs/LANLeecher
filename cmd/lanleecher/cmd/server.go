@@ -18,6 +18,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/api"
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/board"
+	"github.com/lan-dot-party/lanleecher/internal/kea"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
 	"github.com/lan-dot-party/lanleecher/internal/scheduler"
 	"github.com/lan-dot-party/lanleecher/internal/web"
@@ -46,6 +47,7 @@ var serverCmd = &cobra.Command{
 		a.Resolver = resolver.New(e.db, e.cfg.Resolver, log)
 		a.Sched = scheduler.New(e.db, e.key, e.cfg, a.Resolver, log)
 		a.Board = board.New(e.db, a.Sched.Throughput)
+		a.DHCP = kea.NewManager(e.db, e.key, a.Resolver, log)
 		a.Sched.OnPoll = a.Board.Notify
 
 		ui, err := web.New(a)
@@ -75,12 +77,16 @@ var serverCmd = &cobra.Command{
 		if err := a.Sched.Start(ctx); err != nil {
 			return err
 		}
+		if err := a.DHCP.Start(ctx); err != nil {
+			return err
+		}
 		go func() {
 			hup := make(chan os.Signal, 1)
 			signal.Notify(hup, syscall.SIGHUP)
 			for range hup {
 				log.Info("SIGHUP: reloading switches")
 				a.Sched.Reload(ctx)
+				a.DHCP.Reload(ctx)
 			}
 		}()
 

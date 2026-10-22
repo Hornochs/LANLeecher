@@ -139,7 +139,9 @@ Port groups use the port **label**, or switch and port name. Outside of logged-i
 ## Resolvers
 
 Resolvers find IP addresses and hostnames. Address sources deliver MAC/IP pairs: `snmp-arp` (ARP
-table of switches marked as ARP source) and `local-neigh` (the neighbor table of the LANLeecher host).
+table of switches marked as ARP source), `local-neigh` (the neighbor table of the LANLeecher host) and,
+if configured, **Kea DHCP** leases with the client-reported hostname (source `dhcp`, see
+[kea.md](kea.md)).
 Name probes ask an IP for its name: `netbios`, `mdns`, `llmnr`, `dns-ptr`. Every result is kept in the
 **IP history** and **hostname history** with its source and first/last seen.
 

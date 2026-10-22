@@ -39,7 +39,11 @@ LANLEECHER_SNMP_COMMUNITY=demo ./bin/lanleecher -c config.yaml switch add --name
 ```
 
 The community is the file name of the simulation: `demo` (24 ports with made-up guests) or
-`testswitch` (the integration test fixture).
+`testswitch` (the integration test fixture). `config.yaml`, `secret.key`, `data/` and `bin/` in the
+repository root are git-ignored.
+
+To try the Kea DHCP integration, run `go run ./tools/keasim` (see [docs/kea.md](docs/kea.md)) and
+add `https://127.0.0.1:8000/` under Admin → DHCP sources. It serves leases for the demo switch.
 
 For screenshots, give the demo some history once the first poll is through: guest names
 (set them in the UI or the database), then
@@ -49,8 +53,7 @@ python3 testdata/demo/seed_history.py data/lanleecher.db
 ```
 
 It adds six hours of varied traffic to the running event and two earlier LAN parties. All data is
-invented and the result is reproducible. The screenshots in `docs/images/` were made this way. `config.yaml`, `secret.key`, `data/` and `bin/` in the
-repository root are git-ignored.
+invented and the result is reproducible. The screenshots in `docs/images/` were made this way.
 
 ## Rules
 

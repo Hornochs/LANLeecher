@@ -39,7 +39,7 @@ Each module is an interface with interchangeable implementations. Vendor quirks,
 4. **Resolver** – finds IP and hostname for a MAC, also via NetBIOS and mDNS (`snmp-arp`, `local-neigh`, `dhcp-leases`, `dns-ptr`).
 5. **Store** – persistence in SQLite.
 6. **API / Web** – HTTP layer, auth, templates.
-7. **Exporter** (optional) – Prometheus `/metrics`, later Discord like FlowGauge.
+7. **Exporter** (optional) – Prometheus `/metrics`.
 
 Only the accountant writes traffic; collector, FDB source and resolver merely deliver raw data to it or to the store.
 
@@ -150,7 +150,7 @@ Resolvers run in a configurable order; each delivers (MAC, IP, hostname, source,
 6. **`llmnr`** (optional) – fallback for Windows clients without NetBIOS, UDP 5355.
 7. **`dns-ptr`** – reverse DNS for the IP found, if available.
 
-**Kea DHCP (optional):** whoever runs Kea enters the API credentials in the web UI under Admin → DHCP sources. Kea then becomes the most important source for MAC → IP and hostname. Without Kea, everything continues via the other resolvers.
+**Kea DHCP (optional):** whoever runs Kea enters the API credentials in the web UI under Admin → DHCP sources. Kea before 3.0 is reached through the Control Agent (one URL, a `service` list per command); from Kea 3.0 on, each DHCP server has its own HTTP(S) control socket, so a source has a kind – Control Agent, DHCPv4 server or DHCPv6 server – and both response formats are accepted. Details: [docs/kea.md](docs/kea.md). Kea then becomes the most important source for MAC → IP and hostname. Without Kea, everything continues via the other resolvers.
 
 - **Configuration:** URL of the Kea control interface (Control Agent or HTTP control socket, depending on the Kea version), user name and password, optional client certificate. Several Kea servers are possible, e.g. an HA pair. A "Test connection" button checks reachability, certificate and whether the hook `libdhcp_lease_cmds` responds.
 - **Queries:** `lease4-get-page` and `lease6-get-page` (paged, so large lease tables do not end up in one response) every 30 s, configurable. New or changed leases immediately trigger NetBIOS and mDNS queries for the IP.
@@ -433,7 +433,7 @@ Each milestone ends with green tests and a working state; they are worked throug
 6. **Events** ✓ – event lifecycle, booking into `traffic_totals` and `traffic_buckets`, CLI `event start/stop`.
 7. **Auth & web UI** ✓ – users, roles, Argon2id, sessions, CSRF, CLI `user create`; pages dashboard, rankings, search, detail, events, switches & ports, admin; English/German.
 8. **API** ✓ – tokens with scopes, all endpoints, OpenAPI spec with route/spec test in CI, board endpoint with SSE stream, rate limit, Prometheus metrics. Open: response validation with `kin-openapi`.
-9. **Resolvers & history** (partly) – done: `snmp-arp`, `local-neigh`, `dns-ptr`, NetBIOS, mDNS, LLMNR, IP/hostname history, merge suggestions and merge UI. Open: `dhcp-leases` with the optional Kea integration via HTTPS.
+9. **Resolvers & history** ✓ – `snmp-arp`, `local-neigh`, `dns-ptr`, NetBIOS, mDNS, LLMNR, IP/hostname history, merge suggestions and merge UI; Kea DHCP via HTTPS for Kea 2.x (Control Agent) and Kea 3.x (server control sockets) with certificate pinning ([docs/kea.md](docs/kea.md), ADR 0008).
 10. **Packaging & release** ✓ – GoReleaser/nFPM for deb, rpm, Arch, apk, systemd unit, sysusers, Docker (`dockers_v2`), release workflow with attestations, package smoke tests. Open: upgrade test from the previous version (once a first release exists).
 11. **Docs & polish** ✓ – README, `docs/` (installation, generated configuration reference and JSON Schema, reverse proxy, LAN party guide, switch compatibility, concepts, API guide, architecture, security, adapters, roadmap), ADRs, `llms.txt` and generated `llms-full.txt`, `examples/` (Discord, Grafana, Go, curl), CHANGELOG, CONTRIBUTING, SECURITY, Dependabot, screenshots from a simulated demo switch. Open: first test at a real LAN.
 

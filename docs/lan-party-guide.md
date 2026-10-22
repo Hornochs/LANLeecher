@@ -26,6 +26,8 @@ A checklist for organizers: what to do before, during and after the event.
 - [ ] Set **multi-client** on ports with a small switch under the table and give them a **label**
       ("Table 7"); they appear as one entry.
 - [ ] Give table ports labels if you like – they show up in port lists and for port groups.
+- [ ] If you run Kea DHCP: add it under **Admin → DHCP sources** and trust its certificate
+      ([kea.md](kea.md)). DHCP hostnames are then the preferred names.
 - [ ] Ask Windows guests to set the LAN network to **Private**: in the "Public" profile the Windows
       firewall blocks NetBIOS and mDNS, and only the MAC remains as a name.
 - [ ] Create an API token with scope `read:board` for a Discord bot
@@ -62,4 +64,4 @@ A checklist for organizers: what to do before, during and after the event.
 LANLeecher stores MAC addresses, IP addresses and hostnames of your guests with timestamps, and their
 traffic volume per event – no content, no destinations. Tell your guests, keep the web UI behind a
 login, give `read:clients` only to tokens that need it, and delete old events' data if your privacy
-policy requires it (stop the service and remove the database, or ask for a retention feature).
+policy requires it.

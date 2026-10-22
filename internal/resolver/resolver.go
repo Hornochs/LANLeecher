@@ -109,6 +109,49 @@ func (s *Service) ObserveARP(ctx context.Context, pairs []Pair, source string) {
 	}
 }
 
+// DHCPLease is an active lease from a DHCP server.
+type DHCPLease struct {
+	MAC      macaddr.MAC
+	IP       netip.Addr
+	Hostname string
+}
+
+// ObserveDHCP records IPs and client hostnames from DHCP leases for known
+// MACs, with source "dhcp". It works regardless of resolver.order: a
+// configured DHCP source is always used. New MAC/IP pairs are probed
+// immediately. It returns the number of leases of known MACs.
+func (s *Service) ObserveDHCP(ctx context.Context, leases []DHCPLease) int {
+	now := store.Now()
+	known := 0
+	for _, l := range leases {
+		if !l.IP.IsValid() || l.MAC.IsZero() || l.MAC.IsMulticast() {
+			continue
+		}
+		mac := l.MAC.String()
+		ok, err := s.db.MACKnown(ctx, mac)
+		if err != nil {
+			s.log.Warn("lookup mac", "err", err)
+			return known
+		}
+		if !ok {
+			continue
+		}
+		known++
+		isNew, err := s.db.RecordIP(ctx, mac, l.IP.String(), "dhcp", now)
+		if err != nil {
+			s.log.Warn("record ip", "mac", mac, "err", err)
+			continue
+		}
+		if isNew {
+			s.enqueue(Pair{MAC: l.MAC, IP: l.IP})
+		}
+		if name := cleanHostname(l.Hostname); name != "" {
+			s.recordHostname(ctx, mac, name, "dhcp")
+		}
+	}
+	return known
+}
+
 func (s *Service) enqueue(p Pair) {
 	if len(s.probers) == 0 || p.IP.IsLoopback() {
 		return

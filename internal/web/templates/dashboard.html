@@ -22,6 +22,12 @@
 {{define "dashboard_live"}}
 <div id="live" hx-get="/partials/dashboard" hx-trigger="every 15s" hx-swap="outerHTML">
 {{with .Data}}
+  {{range .DHCPProblems}}
+  <p class="alert alert-warn">
+    {{if eq .CertProblem "changed"}}{{$.T "dhcp.alert_changed" .Name}}{{else if eq .CertProblem "untrusted"}}{{$.T "dhcp.alert_untrusted" .Name}}{{else}}{{$.T "dhcp.alert_failed" .Name}}{{end}}
+    <a href="/admin/dhcp/{{.ID}}">{{$.T "dhcp.review"}}</a>
+  </p>
+  {{end}}
   {{if .Event}}
   <section class="hero card">
     <div>

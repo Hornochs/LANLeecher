@@ -14,6 +14,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/auth"
 	"github.com/lan-dot-party/lanleecher/internal/board"
 	"github.com/lan-dot-party/lanleecher/internal/config"
+	"github.com/lan-dot-party/lanleecher/internal/kea"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
 	"github.com/lan-dot-party/lanleecher/internal/scheduler"
 	"github.com/lan-dot-party/lanleecher/internal/secret"
@@ -29,6 +30,7 @@ type App struct {
 	Sched    *scheduler.Manager
 	Board    *board.Service
 	Resolver *resolver.Service
+	DHCP     *kea.Manager
 
 	trusted []netip.Prefix
 }

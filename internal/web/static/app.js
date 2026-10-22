@@ -52,4 +52,18 @@
     if (e.target.id === "snmp-version") syncVersion();
   });
   document.addEventListener("DOMContentLoaded", syncVersion);
+
+  // DHCP form: the v4/v6 selection only applies to the Control Agent.
+  function syncKind() {
+    var sel = document.getElementById("dhcp-kind");
+    if (!sel) return;
+    document.querySelectorAll("fieldset.agent-only").forEach(function (f) { f.hidden = sel.value !== "agent"; });
+  }
+  document.addEventListener("change", function (e) {
+    if (e.target.id === "dhcp-kind") syncKind();
+    // Checkboxes that need a confirmation when switched on.
+    var msg = e.target.dataset && e.target.dataset.confirmCheck;
+    if (msg && e.target.checked && !window.confirm(msg)) e.target.checked = false;
+  });
+  document.addEventListener("DOMContentLoaded", syncKind);
 })();

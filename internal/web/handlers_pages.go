@@ -42,6 +42,8 @@ type dashboardData struct {
 	TopUp    RankingView
 	Chart    template.HTML
 	Switches []*store.Switch
+	// DHCPProblems are DHCP sources that need an admin (admins only).
+	DHCPProblems []*store.DHCPSource
 }
 
 func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error) {
@@ -51,6 +53,9 @@ func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error)
 	var err error
 	if d.Switches, err = s.DB.ListSwitches(ctx); err != nil {
 		return nil, err
+	}
+	if p.Can(store.RoleAdmin) {
+		d.DHCPProblems = s.dhcpProblems(r)
 	}
 	ev, err := s.DB.ActiveEvent(ctx)
 	if errors.Is(err, store.ErrNotFound) {

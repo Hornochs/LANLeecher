@@ -40,6 +40,7 @@ type Server struct {
 var pageFiles = []string{
 	"login", "dashboard", "rankings", "search", "device", "merges", "events", "event", "compare",
 	"switches", "switch_form", "ports", "users", "tokens", "audit", "settings", "account", "board", "error",
+	"dhcp_list", "dhcp_form", "dhcp_source",
 }
 
 // New parses all templates.
@@ -115,6 +116,16 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/admin/tokens/{id}/revoke", s.tokenRevoke)
 			r.Get("/admin/audit", s.audit)
 			r.Get("/admin/settings", s.settings)
+			r.Get("/admin/dhcp", s.dhcpList)
+			r.Get("/admin/dhcp/new", s.dhcpNew)
+			r.Post("/admin/dhcp", s.dhcpCreate)
+			r.Get("/admin/dhcp/{id}", s.dhcpShow)
+			r.Get("/admin/dhcp/{id}/edit", s.dhcpEdit)
+			r.Post("/admin/dhcp/{id}", s.dhcpUpdate)
+			r.Post("/admin/dhcp/{id}/delete", s.dhcpDelete)
+			r.Post("/admin/dhcp/{id}/test", s.dhcpTest)
+			r.Post("/admin/dhcp/{id}/trust", s.dhcpTrust)
+			r.Post("/admin/dhcp/{id}/untrust", s.dhcpUntrust)
 		})
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

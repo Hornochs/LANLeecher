@@ -12,15 +12,13 @@ The full design is in [PROJECT_PLAN.md](../PROJECT_PLAN.md). Status of the miles
 | 6 | Events: lifecycle, totals, 5-minute buckets | done |
 | 7 | Auth & web UI (English/German) | done |
 | 8 | REST API, board with SSE, Prometheus, OpenAPI | done |
-| 9 | Resolvers & history | partly – Kea DHCP missing |
+| 9 | Resolvers & history, Kea DHCP (2.x and 3.x) | done |
 | 10 | Packages, Docker, release workflow | done |
 | 11 | Documentation & polish | done – real-LAN test pending |
 
 ## Next
 
-- **Kea DHCP source** (`dhcp-leases`): leases via the Kea control API over HTTPS, certificate
-  pinning with a browser-like "trust this certificate" flow, hostnames from DHCP as the preferred
-  name source.
+- **Vendor names for MAC addresses** (OUI) in device pages, port lists, search and API.
 - **API response validation** in CI: every handler response checked against the OpenAPI document
   (`kin-openapi`).
 - **Upgrade test** in the release workflow, from the previous release to the new one.
@@ -28,9 +26,6 @@ The full design is in [PROJECT_PLAN.md](../PROJECT_PLAN.md). Status of the miles
 
 ## Ideas
 
-- OUI vendor names for MAC addresses.
-- Data retention: delete MAC/IP/hostname history older than N events.
-- Discord announcements of the top list at event end (like FlowGauge).
 - gNMI collector for switches with streaming telemetry.
 
 Not planned: PostgreSQL (see [ADR 0005](adr/0005-sqlite-only.md)), SNMP v1

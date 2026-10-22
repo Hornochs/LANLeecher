@@ -211,6 +211,11 @@ form.inline { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; m
 .segmented label:has(input:checked) { background: var(--accent); color: var(--accent-text); }
 .bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-bottom: .8rem; }
 .danger-zone { border-color: var(--err); }
+.cert-warning { border-color: var(--warn); background: var(--warn-bg); }
+code.fingerprint { word-break: break-all; font-size: .8rem; }
+.danger-text { color: var(--err); }
+textarea { font: .85rem/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 7px; padding: .4rem .6rem; width: 100%; resize: vertical; }
 .test-ok { border-color: var(--ok); }
 .test-fail { border-color: var(--err); }
 .merge { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .3rem 0; }
