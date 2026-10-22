@@ -18,7 +18,8 @@ internal/resolver/       IP/hostname: snmp-arp, local-neigh, netbios, mdns, llmn
 internal/scheduler/      One poll loop per switch; books deltas into the active event
 internal/store/          SQLite (modernc, no CGO), goose migrations in migrations/sqlite/
 internal/board/          Beamer data; /board and /api/v1/board deliver exactly the same
-internal/api/            REST v1; openapi.yaml is the single source of truth (a test checks routes ↔ spec)
+internal/api/            REST v1; openapi.yaml is the single source of truth (tests check routes ↔ spec and
+                         validate every response against it – add a call to validate_test.go for new endpoints)
 internal/web/            html/template + htmx, embedded assets, i18n (en/de) in i18n.go
 internal/auth/           Argon2id, tokens (llk_…), login lockout, rate limit
 packaging/               Package config, systemd unit, sysusers, install scripts, install test

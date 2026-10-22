@@ -64,8 +64,8 @@ records pairs only for MACs that were seen on a switch port and queues name prob
 
 ## Collector
 
-`internal/collector.Collector` abstracts counter polling (`Poll`, `System`). The SNMP collector is the
-only implementation; a gNMI collector could implement the same interface. Interface classification
+`internal/collector.Collector` abstracts counter polling (`Poll`, `System`); SNMP is the only
+implementation. Interface classification
 (`Physical`, `IsLAG`) lives there too – extend the name patterns if a vendor reports misleading
 `ifType` values.
 

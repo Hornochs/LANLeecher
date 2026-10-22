@@ -37,7 +37,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   toggle in the top bar or on the account page.
 - REST API v1 with scoped bearer tokens (`read:rankings`, `read:clients`, `write:events`,
   `read:board`), IP allowlists, expiry, rate limits, RFC 9457 errors and an OpenAPI 3.1
-  specification; Prometheus metrics.
+  specification that tests enforce for every endpoint and error case; Prometheus metrics.
 - Security: Argon2id passwords, login lockout, CSRF protection, strict Content Security Policy,
   AES-256-GCM encryption of SNMP credentials.
 - CLI: `server`, `config init`, `migrate`, `backup`, `user`, `event`, `switch`, `version`.

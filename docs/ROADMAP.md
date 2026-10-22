@@ -18,14 +18,8 @@ The full design is in [PROJECT_PLAN.md](../PROJECT_PLAN.md). Status of the miles
 
 ## Next
 
-- **API response validation** in CI: every handler response checked against the OpenAPI document
-  (`kin-openapi`).
 - **Upgrade test** in the release workflow, from the previous release to the new one.
 - **First real LAN party** and a report on the switch compatibility page.
 
-## Ideas
-
-- gNMI collector for switches with streaming telemetry.
-
-Not planned: PostgreSQL (see [ADR 0005](adr/0005-sqlite-only.md)), SNMP v1
+Not planned: a gNMI collector, PostgreSQL (see [ADR 0005](adr/0005-sqlite-only.md)), SNMP v1
 (see [ADR 0003](adr/0003-no-snmp-v1.md)).

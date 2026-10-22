@@ -33,7 +33,7 @@ Decided: Go, like FlowGauge – a single static binary, trivial packaging, and w
 
 Each module is an interface with interchangeable implementations. Vendor quirks, new resolvers or storage backends can be added without touching the core.
 
-1. **Collector** – reads interface counters and port names (`snmp`; later e.g. `gnmi`).
+1. **Collector** – reads interface counters and port names via SNMP.
 2. **FDB source** – delivers MAC → port assignments (`bridge-mib`, `qbridge-mib`, vendor adapters such as Cisco community@vlan).
 3. **Accountant** – computes deltas, detects resets/wraps, assigns traffic to MACs or port groups.
 4. **Resolver** – finds IP and hostname for a MAC, also via NetBIOS and mDNS (`snmp-arp`, `local-neigh`, `dhcp-leases`, `dns-ptr`).
@@ -402,7 +402,7 @@ Everything is documented so that a human or an LLM in another project can build 
 - Every endpoint with description, all parameters with limits, required scope, example request (`curl`) and example response, also for error cases.
 - Uniform error format per RFC 9457 (`application/problem+json`) with stable error codes.
 - Unambiguous units everywhere: bytes as integers, throughput in bit/s, timestamps RFC 3339 in UTC, normalized MACs. Field names carry the direction (`bytes_down`, `bytes_up`).
-- CI test: routes and the specification must match; next step: validate every handler response against the spec (`kin-openapi`). If code deviates from the docs, the build fails.
+- CI test: routes and the specification must match, and every endpoint is called (including error cases) with its response validated against the spec (`kin-openapi`): status code, content type and body. If code deviates from the docs, the build fails.
 - Versioning: `/api/v1` stays stable; breaking changes only in `/api/v2`, announced via a `Deprecation` header and in the changelog.
 
 ### For LLMs
@@ -432,7 +432,7 @@ Each milestone ends with green tests and a working state; they are worked throug
 5. **FDB** ✓ – BRIDGE-MIB and Q-BRIDGE-MIB, mapping bridge port → `ifIndex`, `mac_locations`, uplink heuristics incl. LLDP.
 6. **Events** ✓ – event lifecycle, booking into `traffic_totals` and `traffic_buckets`, CLI `event start/stop`.
 7. **Auth & web UI** ✓ – users, roles, Argon2id, sessions, CSRF, CLI `user create`; pages dashboard, rankings, search, detail, events, switches & ports, admin; English/German.
-8. **API** ✓ – tokens with scopes, all endpoints, OpenAPI spec with route/spec test in CI, board endpoint with SSE stream, rate limit, Prometheus metrics. Open: response validation with `kin-openapi`.
+8. **API** ✓ – tokens with scopes, all endpoints, OpenAPI spec with route/spec test and response validation (`kin-openapi`) in CI, board endpoint with SSE stream, rate limit, Prometheus metrics.
 9. **Resolvers & history** ✓ – `snmp-arp`, `local-neigh`, `dns-ptr`, NetBIOS, mDNS, LLMNR, IP/hostname history, merge suggestions and merge UI; Kea DHCP via HTTPS for Kea 2.x (Control Agent) and Kea 3.x (server control sockets) with certificate pinning ([docs/kea.md](docs/kea.md), ADR 0008).
 10. **Packaging & release** ✓ – GoReleaser/nFPM for deb, rpm, Arch, apk, systemd unit, sysusers, Docker (`dockers_v2`), release workflow with attestations, package smoke tests. Open: upgrade test from the previous version (once a first release exists).
 11. **Docs & polish** ✓ – README, `docs/` (installation, generated configuration reference and JSON Schema, reverse proxy, LAN party guide, switch compatibility, concepts, API guide, architecture, security, adapters, roadmap), ADRs, `llms.txt` and generated `llms-full.txt`, `examples/` (Discord, Grafana, Go, curl), CHANGELOG, CONTRIBUTING, SECURITY, Dependabot, screenshots from a simulated demo switch. Open: first test at a real LAN.

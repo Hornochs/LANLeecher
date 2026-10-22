@@ -77,6 +77,7 @@ paths:
         "403": {$ref: "#/components/responses/Forbidden"}
         "404": {$ref: "#/components/responses/NotFound"}
         "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
       x-codeSamples:
         - lang: curl
           source: 'curl -H "Authorization: Bearer $TOKEN" "https://lanleecher.example/api/v1/rankings/download?limit=10"'
@@ -103,6 +104,10 @@ paths:
                 properties:
                   events: {type: array, items: {$ref: "#/components/schemas/Event"}}
         "401": {$ref: "#/components/responses/Unauthorized"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
     post:
       tags: [events]
       operationId: startEvent
@@ -132,6 +137,8 @@ paths:
         "400": {$ref: "#/components/responses/BadRequest"}
         "401": {$ref: "#/components/responses/Unauthorized"}
         "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
       x-codeSamples:
         - lang: curl
           source: |
@@ -158,6 +165,10 @@ paths:
                   event: {$ref: "#/components/schemas/Event"}
                   totals: {$ref: "#/components/schemas/Totals"}
         "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/events/{slug}/stop:
     post:
@@ -178,6 +189,10 @@ paths:
                 properties:
                   event: {$ref: "#/components/schemas/Event"}
         "409": {$ref: "#/components/responses/Conflict"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/clients/search:
     get:
@@ -212,6 +227,10 @@ paths:
                         last_seen: {type: string, format: date-time}
                         match: {type: string, enum: [mac, ip, hostname]}
         "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/clients/mac/{mac}:
     get:
@@ -233,6 +252,10 @@ paths:
               schema: {$ref: "#/components/schemas/Client"}
         "400": {$ref: "#/components/responses/BadRequest"}
         "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/clients/mac/{mac}/timeseries:
     get:
@@ -264,6 +287,11 @@ paths:
                         bytes_down: {type: integer}
                         bytes_up: {type: integer}
         "404": {$ref: "#/components/responses/NotFound"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/clients/ip/{ip}:
     get:
@@ -284,6 +312,11 @@ paths:
                 properties:
                   ip: {type: string}
                   entries: {type: array, items: {$ref: "#/components/schemas/History"}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/clients/hostname/{name}:
     get:
@@ -304,6 +337,10 @@ paths:
                 properties:
                   hostname: {type: string}
                   entries: {type: array, items: {$ref: "#/components/schemas/History"}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/ports:
     get:
@@ -339,6 +376,11 @@ paths:
                         bytes_up: {type: integer}
                         unassigned_bytes_down: {type: integer}
                         unassigned_bytes_up: {type: integer}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/board:
     get:
@@ -365,6 +407,10 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Board"}
         "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/board/stream:
     get:
@@ -385,6 +431,11 @@ paths:
           content:
             text/event-stream:
               schema: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /api/v1/metrics:
     get:
@@ -398,6 +449,10 @@ paths:
           content:
             text/plain:
               schema: {type: string}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
 
   /health:
     get:
@@ -458,6 +513,11 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     TooManyRequests:
       description: Rate limit per token exceeded
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/Problem"}
+    InternalError:
+      description: Unexpected server error (details in the server log)
       content:
         application/problem+json:
           schema: {$ref: "#/components/schemas/Problem"}

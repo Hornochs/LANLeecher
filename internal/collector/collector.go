@@ -62,7 +62,7 @@ type System struct {
 	Uptime time.Duration
 }
 
-// Collector reads counters from one device. Implementations: SNMP (gNMI later).
+// Collector reads counters from one device. SNMP is the only implementation.
 type Collector interface {
 	// System returns sysDescr, sysName and sysUpTime.
 	System(ctx context.Context) (System, error)

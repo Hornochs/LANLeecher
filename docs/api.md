@@ -2,8 +2,9 @@
 
 LANLeecher has a JSON REST API under `/api/v1`. The OpenAPI 3.1 specification is the single source of
 truth: it is served at `/api/openapi.json` (and `/api/openapi.yaml`), rendered at `/api/` and kept in
-the repository at [`internal/api/openapi.yaml`](../internal/api/openapi.yaml). A test fails when routes
-and specification diverge.
+the repository at [`internal/api/openapi.yaml`](../internal/api/openapi.yaml). Tests call every
+endpoint – including error cases – and validate status code, content type and body against the
+specification, so code and documentation cannot drift apart.
 
 ## Authentication
 
