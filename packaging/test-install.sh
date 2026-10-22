@@ -60,6 +60,8 @@ case "$format" in
     archlinux) pacman -R --noconfirm lanleecher ;;
     apk) apk del lanleecher ;;
 esac
-! command -v lanleecher >/dev/null || fail "binary still installed"
+# Check the file, not `command -v`: the shell has cached the path since
+# `lanleecher version` above and would still report the removed binary.
+[ ! -e /usr/bin/lanleecher ] || fail "binary still installed"
 [ -f /var/lib/lanleecher/lanleecher.db ] || fail "data was deleted on removal"
 echo "OK: $pkg"

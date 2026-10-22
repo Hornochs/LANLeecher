@@ -79,8 +79,8 @@ jobs:
           - {image: "debian:12", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
           - {image: "debian:13", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
           - {image: "ubuntu:24.04", format: deb, setup: "apt-get update && apt-get install -y --no-install-recommends curl ca-certificates"}
-          - {image: "fedora:latest", format: rpm, setup: "dnf install -y curl shadow-utils"}
-          - {image: "rockylinux:9", format: rpm, setup: "dnf install -y --allowerasing curl shadow-utils"}
+          - {image: "fedora:latest", format: rpm, setup: "dnf install -y curl shadow-utils util-linux"}
+          - {image: "rockylinux:9", format: rpm, setup: "dnf install -y --allowerasing curl shadow-utils util-linux"}
           - {image: "archlinux:latest", format: archlinux, setup: "pacman -Syu --noconfirm curl"}
           - {image: "alpine:3.21", format: apk, setup: "apk add --no-cache curl coreutils"}
     env:
