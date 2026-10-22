@@ -12,6 +12,16 @@
   </form>
 </section>
 <section class="card">
+  <h3>{{.T "account.theme"}}</h3>
+  <form method="post" action="/account/theme" class="inline">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <input type="hidden" name="back" value="/account?ok=saved">
+    <select name="theme">{{range themes}}<option value="{{.}}"{{if eq . $.Theme}} selected{{end}}>{{$.T (print "theme." .)}}</option>{{end}}</select>
+    <button type="submit">{{.T "action.save"}}</button>
+  </form>
+  <p class="muted small">{{.T "account.theme_hint"}}</p>
+</section>
+<section class="card">
   <h3>{{.T "account.language"}}</h3>
   <form method="post" action="/account/language" class="inline">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">

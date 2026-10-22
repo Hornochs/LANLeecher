@@ -129,6 +129,22 @@ func (s *Server) accountPassword(w http.ResponseWriter, r *http.Request) {
 	redirect(w, r, "/login")
 }
 
+// accountTheme stores the color theme and returns to the page the user came from.
+func (s *Server) accountTheme(w http.ResponseWriter, r *http.Request) {
+	t := r.PostFormValue("theme")
+	if !store.ValidTheme(t) {
+		s.errorPage(w, r, http.StatusBadRequest, "error.bad_request")
+		return
+	}
+	if err := s.DB.SetUserTheme(r.Context(), app.User(r.Context()).ID, t); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: themeCookie, Value: t, Path: "/", HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, Secure: s.Cfg.SecureCookies(), MaxAge: 365 * 24 * 3600})
+	redirect(w, r, safeNext(r.PostFormValue("back")))
+}
+
 func (s *Server) accountLanguage(w http.ResponseWriter, r *http.Request) {
 	lang := r.PostFormValue("language")
 	if lang != "de" && lang != "en" {

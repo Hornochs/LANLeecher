@@ -35,21 +35,23 @@ type User struct {
 	PasswordHash string
 	Role         string
 	Language     string
-	Disabled     bool
-	CreatedAt    time.Time
-	LastLogin    *time.Time
+	// Theme is the UI color theme: auto, light or dark.
+	Theme     string
+	Disabled  bool
+	CreatedAt time.Time
+	LastLogin *time.Time
 }
 
 // Can reports whether the user has at least the given role.
 func (u *User) Can(role string) bool { return u != nil && RoleLevel(u.Role) >= RoleLevel(role) }
 
-const userCols = `id, username, password_hash, role, language, disabled, created_at, last_login`
+const userCols = `id, username, password_hash, role, language, theme, disabled, created_at, last_login`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var u User
 	var created int64
 	var last sql.NullInt64
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Language, &u.Disabled, &created, &last)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Language, &u.Theme, &u.Disabled, &created, &last)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -133,6 +135,28 @@ func (db *DB) UpdateUser(ctx context.Context, id int64, role, language string, d
 // SetUserLanguage changes the UI language of a user.
 func (db *DB) SetUserLanguage(ctx context.Context, id int64, language string) error {
 	_, err := db.sql.ExecContext(ctx, `UPDATE users SET language = ? WHERE id = ?`, language, id)
+	return err
+}
+
+// Themes are the valid UI color themes.
+var Themes = []string{"auto", "light", "dark"}
+
+// ValidTheme reports whether t is a known theme.
+func ValidTheme(t string) bool {
+	for _, v := range Themes {
+		if t == v {
+			return true
+		}
+	}
+	return false
+}
+
+// SetUserTheme changes the UI color theme of a user.
+func (db *DB) SetUserTheme(ctx context.Context, id int64, theme string) error {
+	if !ValidTheme(theme) {
+		return errors.New("invalid theme")
+	}
+	_, err := db.sql.ExecContext(ctx, `UPDATE users SET theme = ? WHERE id = ?`, theme, id)
 	return err
 }
 

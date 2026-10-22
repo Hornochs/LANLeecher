@@ -34,8 +34,9 @@ var funcs = template.FuncMap{
 		}
 		return *t
 	},
-	"seq":   func(vals ...int) []int { return vals },
-	"lower": strings.ToLower,
+	"seq":    func(vals ...int) []int { return vals },
+	"lower":  strings.ToLower,
+	"themes": func() []string { return store.Themes },
 }
 
 // formatBytes uses decimal units like the switch and ISP world (1 GB = 10^9 B).

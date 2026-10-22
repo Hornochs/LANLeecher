@@ -1,5 +1,5 @@
 {{define "layout"}}<!doctype html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,6 +27,13 @@
     <input type="search" name="q" placeholder="{{.T "search.placeholder"}}" aria-label="{{.T "nav.search"}}">
   </form>
   <div class="user">
+    <form action="/account/theme" method="post" class="theme-toggle">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <input type="hidden" name="theme" value="{{.NextTheme}}">
+      <input type="hidden" name="back" value="{{.Path}}">
+      <button class="icon" type="submit" title="{{.T "theme.toggle" (.T (print "theme." .Theme)) (.T (print "theme." .NextTheme))}}"
+        aria-label="{{.T "theme.toggle" (.T (print "theme." .Theme)) (.T (print "theme." .NextTheme))}}">{{if eq .Theme "dark"}}☾{{else if eq .Theme "light"}}☀{{else}}◐{{end}}</button>
+    </form>
     <a href="/account">{{.User.Username}}</a>
     <form action="/logout" method="post"><input type="hidden" name="_csrf" value="{{.CSRF}}">
       <button class="link" type="submit">{{.T "nav.logout"}}</button></form>

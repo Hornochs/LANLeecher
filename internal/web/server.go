@@ -85,6 +85,7 @@ func (s *Server) Routes() http.Handler {
 		r.Get("/account", s.account)
 		r.Post("/account/password", s.accountPassword)
 		r.Post("/account/language", s.accountLanguage)
+		r.Post("/account/theme", s.accountTheme)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireRole(store.RoleOperator))
@@ -186,7 +187,22 @@ type Page struct {
 	Error   string
 	Version string
 	Board   bool
-	Data    any
+	// Theme is the color theme: auto, light or dark.
+	Theme string
+	// Path is the current request URI, to return to after a theme change.
+	Path string
+	Data any
+}
+
+// NextTheme is the theme the toggle in the top bar switches to.
+func (p *Page) NextTheme() string {
+	switch p.Theme {
+	case "auto":
+		return "light"
+	case "light":
+		return "dark"
+	}
+	return "auto"
 }
 
 // T translates a key.
@@ -197,7 +213,7 @@ func (p *Page) Can(role string) bool { return p.User.Can(role) }
 
 func (s *Server) page(r *http.Request, title, nav string, data any) *Page {
 	p := &Page{Lang: language(r), User: app.User(r.Context()), Title: title, Nav: nav, Version: version.Version,
-		Board: s.Cfg.Board.Enabled, Data: data}
+		Board: s.Cfg.Board.Enabled, Theme: theme(r), Path: r.URL.RequestURI(), Data: data}
 	if sess := app.Session(r.Context()); sess != nil {
 		p.CSRF = sess.CSRFToken
 	}
@@ -260,6 +276,20 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 func redirect(w http.ResponseWriter, r *http.Request, to string) {
 	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
+// themeCookie keeps the theme for the login page after logout.
+const themeCookie = "ll_theme"
+
+// theme picks the user's theme, else the cookie's, else auto.
+func theme(r *http.Request) string {
+	if u := app.User(r.Context()); u != nil && store.ValidTheme(u.Theme) {
+		return u.Theme
+	}
+	if c, err := r.Cookie(themeCookie); err == nil && store.ValidTheme(c.Value) {
+		return c.Value
+	}
+	return "auto"
 }
 
 // language picks the user's language, else the browser's, else English.

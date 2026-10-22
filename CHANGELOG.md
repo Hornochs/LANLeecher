@@ -26,6 +26,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   per-event history and charts, switch and port management with connection test, merge
   suggestions, users, API tokens, audit log.
 - Beamer view `/board` with live updates via Server-Sent Events.
+- Light and dark theme: automatic (follows the operating system), or chosen per user with the
+  toggle in the top bar or on the account page.
 - REST API v1 with scoped bearer tokens (`read:rankings`, `read:clients`, `write:events`,
   `read:board`), IP allowlists, expiry, rate limits, RFC 9457 errors and an OpenAPI 3.1
   specification; Prometheus metrics.

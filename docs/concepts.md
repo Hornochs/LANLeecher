@@ -42,6 +42,8 @@ than `polling.uplink_mac_threshold` or an LLDP neighbor; an admin confirms it by
 - A **device** groups one or more MACs that belong to one machine. Every new MAC gets its own device;
   an operator can merge devices (e.g. after a NIC change) and split a MAC off again. Rankings show
   devices, not single MACs.
+![A device page: totals per event, timeline, hostname and IP history, ports](images/device.png)
+
 - A **port group** is the shared ranking entry of a port with several clients. It lists all MACs
   seen on the port during the event.
 - **Unassigned** traffic was seen on a client port while no MAC was learned there (e.g. right after
@@ -108,6 +110,13 @@ because names such as `DESKTOP-ABC123` or `PC` are not unique.
 The beamer view at `/board` shows the top downloaders and uploaders of the active event with live
 updates. It renders exactly what `GET /api/v1/board` returns: no MACs, no IPs, no hidden entries.
 `rank_change` tells how many places an entry moved since the previous poll.
+
+## Theme
+
+The web UI has a light and a dark theme. **Automatic** (the default) follows the operating system or
+browser; each user can pick light or dark with the toggle in the top bar or on the account page. The
+choice is stored with the user and in a cookie, so the login page matches after logging out. The
+beamer view is always dark.
 
 ## Roles of users
 

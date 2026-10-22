@@ -198,6 +198,13 @@ var messages = map[string][2]string{
 	"account.password": {"Passwort ändern", "Change password"},
 	"account.current":  {"Aktuelles Passwort", "Current password"},
 	"account.language": {"Sprache", "Language"},
+	"account.theme":    {"Darstellung", "Theme"},
+	"account.theme_hint": {"Automatisch folgt der Einstellung von Betriebssystem bzw. Browser. Die Beameransicht ist immer dunkel.",
+		"Automatic follows the operating system or browser setting. The beamer view is always dark."},
+	"theme.auto":   {"automatisch", "automatic"},
+	"theme.light":  {"hell", "light"},
+	"theme.dark":   {"dunkel", "dark"},
+	"theme.toggle": {"Darstellung: %s – klicken für %s", "Theme: %s – click for %s"},
 
 	"tokens.created":        {"Token erstellt", "Token created"},
 	"tokens.once":           {"Der Token wird nur jetzt angezeigt. Bitte sofort sicher ablegen.", "The token is shown only now. Store it safely right away."},

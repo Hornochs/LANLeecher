@@ -11,6 +11,8 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 
 ![The dashboard during an event: totals, live throughput, top downloaders and uploaders](docs/images/dashboard.png)
 
+![The same dashboard in the dark theme](docs/images/dashboard-dark.png)
+
 ![The beamer view at /board, updated live after every poll](docs/images/board.png)
 
 ## What LANLeecher does
@@ -27,9 +29,10 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
   applies retroactively.
 - **Events** to start and stop, compare and export as CSV or JSON.
 - **Accounts** with three roles (viewer, operator, admin), API tokens with scopes, and an audit log.
+- **Light and dark theme**, following the system or chosen per user; English and German.
 - **Packages** for Debian/Ubuntu, Fedora/RHEL, Arch Linux and Alpine, and a multi-arch Docker image.
 
-![A switch with its ports: roles, labels, learned MACs, traffic in the event and live rates](docs/images/ports.png)
+![A switch with its ports: roles, labels, learned MACs, traffic in the event and live rates](docs/images/ports-dark.png)
 
 ## Design principles
 

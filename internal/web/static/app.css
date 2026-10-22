@@ -19,8 +19,29 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
   color-scheme: light;
 }
+/* Dark colors: always with data-theme="dark", and with "auto" when the system prefers dark. */
+:root[data-theme="dark"] {
+  --bg: #0f141a;
+  --surface: #161d26;
+  --surface-2: #1d2632;
+  --text: #e6edf3;
+  --muted: #93a1b2;
+  --border: #2a3644;
+  --accent: #4dabf7;
+  --accent-text: #0f141a;
+  --down: #4dabf7;
+  --up: #ff922b;
+  --ok: #51cf66;
+  --err: #ff6b6b;
+  --warn: #ffc078;
+  --warn-bg: #3a2a10;
+  --ok-bg: #12301b;
+  --err-bg: #3a1616;
+  --shadow: none;
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --bg: #0f141a;
     --surface: #161d26;
     --surface-2: #1d2632;
@@ -68,6 +89,11 @@ h4 { font-size: .95rem; margin: 1rem 0 .4rem; }
 .search input { width: 15rem; }
 .user { display: flex; gap: .6rem; align-items: center; }
 .user form { margin: 0; }
+.theme-toggle button.icon {
+  background: none; border: 1px solid transparent; font-size: 1.1rem; line-height: 1; padding: .3rem .45rem;
+  color: var(--muted);
+}
+.theme-toggle button.icon:hover { border-color: var(--border); color: var(--text); }
 .subnav { display: flex; gap: 1rem; margin: .4rem 0 1rem; }
 
 .container { max-width: 1280px; margin: 0 auto; padding: 1rem; }
