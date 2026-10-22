@@ -15,3 +15,6 @@
 .venv/
 .vscode/
 coverage.out
+
+# Local scratch files (e.g. downloaded CI logs)
+/temp/
