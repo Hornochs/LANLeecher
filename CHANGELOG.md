@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-23
+
 ### Added
 
 - Traffic charts show a tooltip with the time and the download and upload rate of the 5-minute
@@ -61,3 +63,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: installation, configuration reference and JSON Schema (generated), reverse proxy,
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
+
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/lan-dot-party/LANLeecher/releases/tag/v1.0.0
