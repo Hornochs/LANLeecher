@@ -36,6 +36,7 @@ type poller struct {
 	live         map[int64]Rate
 	lastDuration time.Duration
 	lastFDB      time.Time
+	lastUnknown  int // FDB entries on unknown interfaces in the last read
 }
 
 func newPoller(m *Manager, s *store.Switch, t snmp.Target) *poller {
@@ -298,14 +299,25 @@ func (p *poller) pollFDB(ctx context.Context) error {
 
 	macs := map[int][]macaddr.MAC{}
 	var sightings []store.Sighting
+	unknown, unknownIf := 0, 0
 	for _, e := range entries {
 		port := byIf[e.IfIndex]
 		if port == nil {
+			unknown++
+			unknownIf = e.IfIndex
 			continue
 		}
 		macs[e.IfIndex] = append(macs[e.IfIndex], e.MAC)
 		sightings = append(sightings, store.Sighting{MAC: e.MAC.String(), PortID: port.ID, VLAN: e.VLAN,
 			Uplink: port.Role == accounting.RoleUplink})
+	}
+	// Warn only when the number changes, not on every read.
+	if unknown != p.lastUnknown {
+		if unknown > 0 {
+			p.log.Warn("fdb entries on unknown interfaces ignored; try another FDB adapter",
+				"entries", unknown, "of", len(entries), "example_if_index", unknownIf, "adapter", src.Name())
+		}
+		p.lastUnknown = unknown
 	}
 	neighbors := map[int64]string{}
 	for ifIndex, name := range lldp {

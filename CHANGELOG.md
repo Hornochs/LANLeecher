@@ -6,6 +6,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Forwarding-table source `auto` falls back to BRIDGE-MIB when Q-BRIDGE reports bridge ports that
+  `dot1dBasePortIfIndex` does not list. TP-Link JetStream switches (e.g. T1500G-8T) report port
+  numbers in `dot1qTpFdbPort`, so their FDB entries were dropped and no traffic was attributed to
+  clients. The log now warns when FDB entries point to unknown interfaces.
+
+## [1.0.0] - 2026-10-22
+
 ### Added
 
 - Traffic accounting per client (MAC) and event via SNMP v2c/v3 with 64-bit counters: deltas only,
