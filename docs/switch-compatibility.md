@@ -29,7 +29,7 @@ Use **Test connection** in the switch form: it lists every interface with status
 
 | Adapter | Reads |
 | --- | --- |
-| `auto` (default) | Q-BRIDGE-MIB, falls back to BRIDGE-MIB |
+| `auto` (default) | Q-BRIDGE-MIB; falls back to BRIDGE-MIB when Q-BRIDGE is empty or reports bridge ports that `dot1dBasePortIfIndex` does not list |
 | `qbridge` | `dot1qTpFdbPort` only |
 | `bridge` | `dot1dTpFdbPort` only |
 | `cisco-vlan` | BRIDGE-MIB once per VLAN via community `<community>@<vlan>` or v3 context `vlan-<id>` (Cisco IOS) |
@@ -52,6 +52,10 @@ Use **Test connection** in the switch form: it lists every interface with status
 - No `ifStackTable` and no IEEE8023-LAG-MIB: members of a port channel are not reported. They have
   LLDP neighbors and are marked "probably uplink" – set them to uplink.
 - LLDP local port IDs use subtype interfaceName and match `ifName`.
+- JetStream (T1500G-8T): `dot1qTpFdbPort` reports port numbers (1–8), while `dot1dBasePortIfIndex`
+  and `dot1dTpFdbPort` use ifIndex values (49153…). The Q-BRIDGE ports cannot be mapped, so `auto`
+  uses BRIDGE-MIB. If FDB entries cannot be assigned to a known interface, the log shows
+  "fdb entries on unknown interfaces ignored" – then try the `bridge` adapter.
 
 Please report your switch: open an issue with vendor, model, firmware, SNMP version and the output of
 **Test connection** (remove anything private), or a pull request for this table.

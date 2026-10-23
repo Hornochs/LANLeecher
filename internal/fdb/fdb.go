@@ -68,7 +68,11 @@ const (
 	statusMgmt    = 5
 )
 
-// Auto tries Q-BRIDGE-MIB first and falls back to BRIDGE-MIB.
+// Auto tries Q-BRIDGE-MIB first and falls back to BRIDGE-MIB when Q-BRIDGE
+// delivers nothing or bridge ports that dot1dBasePortIfIndex does not know.
+// Some firmware (e.g. TP-Link JetStream) reports port numbers (1, 2, …) in
+// dot1qTpFdbPort but ifIndex values in dot1dBasePortIfIndex and
+// dot1dTpFdbPort; only BRIDGE-MIB can be mapped there.
 type Auto struct{}
 
 // Name implements Source.
@@ -76,11 +80,34 @@ func (Auto) Name() string { return "auto" }
 
 // Read implements Source.
 func (Auto) Read(ctx context.Context, s Session) ([]Entry, error) {
-	entries, err := QBridge{}.Read(ctx, s)
-	if err == nil && len(entries) > 0 {
-		return entries, nil
+	q, qUnmapped, qErr := readTableCounted(s.Client(), oidDot1qFdbPort, oidDot1qFdbStatus)
+	if qErr == nil && len(q) > 0 && qUnmapped == 0 {
+		return q, nil
 	}
-	return Bridge{}.Read(ctx, s)
+	b, bUnmapped, bErr := readTableCounted(s.Client(), oidDot1dFdbPort, oidDot1dFdbStatus)
+	return pick(tableResult{q, qUnmapped, qErr}, tableResult{b, bUnmapped, bErr})
+}
+
+type tableResult struct {
+	entries  []Entry
+	unmapped int
+	err      error
+}
+
+// pick chooses between the Q-BRIDGE and the BRIDGE-MIB result: Q-BRIDGE
+// unless it failed, is empty or has more unmapped bridge ports than BRIDGE-MIB.
+func pick(q, b tableResult) ([]Entry, error) {
+	qOK := q.err == nil && len(q.entries) > 0
+	if qOK && q.unmapped == 0 {
+		return q.entries, nil
+	}
+	if b.err == nil && len(b.entries) > 0 && (!qOK || b.unmapped < q.unmapped) {
+		return b.entries, nil
+	}
+	if qOK {
+		return q.entries, nil
+	}
+	return b.entries, b.err
 }
 
 // QBridge reads dot1qTpFdbPort (index: FDB ID / VLAN, then MAC).
@@ -148,27 +175,43 @@ func (CiscoVLAN) Read(ctx context.Context, s Session) ([]Entry, error) {
 // readTable walks an FDB port column, filters by status and maps bridge
 // ports to ifIndex.
 func readTable(g *gosnmp.GoSNMP, portCol, statusCol string) ([]Entry, error) {
+	entries, _, err := readTableCounted(g, portCol, statusCol)
+	return entries, err
+}
+
+// readTableCounted is readTable that also returns how many entries had a
+// bridge port missing from dot1dBasePortIfIndex.
+func readTableCounted(g *gosnmp.GoSNMP, portCol, statusCol string) ([]Entry, int, error) {
 	ports, err := snmp.WalkColumn(g, portCol)
 	if err != nil {
-		return nil, fmt.Errorf("walk FDB: %w", err)
+		return nil, 0, fmt.Errorf("walk FDB: %w", err)
 	}
 	if len(ports) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 	statusRows, err := snmp.WalkColumn(g, statusCol)
 	if err != nil {
-		return nil, fmt.Errorf("walk FDB status: %w", err)
+		return nil, 0, fmt.Errorf("walk FDB status: %w", err)
 	}
+	baseRows, err := snmp.WalkColumn(g, oidBasePortIfIndex)
+	if err != nil {
+		return nil, 0, fmt.Errorf("walk dot1dBasePortIfIndex: %w", err)
+	}
+	entries, unmapped := resolve(ports, statusRows, baseRows)
+	return entries, unmapped, nil
+}
+
+// resolve turns the rows of an FDB port column, its status column and
+// dot1dBasePortIfIndex into entries. unmapped counts entries whose bridge
+// port is not in a non-empty dot1dBasePortIfIndex; their bridge port is used
+// as ifIndex, which is right only for some switches.
+func resolve(ports, statusRows, baseRows []snmp.Row) (entries []Entry, unmapped int) {
 	status := map[string]int{}
 	for _, r := range statusRows {
 		v, _ := snmp.Int(r.PDU)
 		status[key(r.Index)] = v
 	}
-	bridgeToIf, err := bridgePortMap(g)
-	if err != nil {
-		return nil, err
-	}
-	var out []Entry
+	bridgeToIf := bridgePortMap(baseRows)
 	for _, r := range ports {
 		if len(r.Index) < 6 {
 			continue
@@ -189,21 +232,20 @@ func readTable(g *gosnmp.GoSNMP, portCol, statusCol string) ([]Entry, error) {
 		if !ok {
 			// Without dot1dBasePortIfIndex many switches use ifIndex directly.
 			ifIndex = bp
+			if len(bridgeToIf) > 0 {
+				unmapped++
+			}
 		}
 		vlan := 0
 		if len(r.Index) == 7 {
 			vlan = r.Index[0]
 		}
-		out = append(out, Entry{MAC: mac, IfIndex: ifIndex, VLAN: vlan})
+		entries = append(entries, Entry{MAC: mac, IfIndex: ifIndex, VLAN: vlan})
 	}
-	return out, nil
+	return entries, unmapped
 }
 
-func bridgePortMap(g *gosnmp.GoSNMP) (map[int]int, error) {
-	rows, err := snmp.WalkColumn(g, oidBasePortIfIndex)
-	if err != nil {
-		return nil, fmt.Errorf("walk dot1dBasePortIfIndex: %w", err)
-	}
+func bridgePortMap(rows []snmp.Row) map[int]int {
 	out := make(map[int]int, len(rows))
 	for _, r := range rows {
 		if len(r.Index) != 1 {
@@ -212,7 +254,7 @@ func bridgePortMap(g *gosnmp.GoSNMP) (map[int]int, error) {
 		v, _ := snmp.Int(r.PDU)
 		out[r.Index[0]] = v
 	}
-	return out, nil
+	return out
 }
 
 func key(idx []int) string {

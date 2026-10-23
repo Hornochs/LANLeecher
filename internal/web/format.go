@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -183,8 +184,20 @@ func lineChart(buckets []store.Bucket) template.HTML {
 		}
 		return b.String()
 	}
+	// The values go into data attributes so that app.js can show a tooltip
+	// with time and rate under the mouse pointer.
+	csv := func(vals []float64) string {
+		parts := make([]string, len(vals))
+		for i, v := range vals {
+			parts[i] = strconv.FormatFloat(math.Round(v), 'f', -1, 64)
+		}
+		return strings.Join(parts, ",")
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, `<svg class="chart" viewBox="0 0 %.0f %.0f" role="img" aria-label="Traffic">`, w, h)
+	fmt.Fprintf(&b, `<div class="chart-wrap"><svg class="chart" viewBox="0 0 %.0f %.0f" role="img" aria-label="Traffic"`+
+		` data-start="%d" data-step="%.0f" data-x0="%.1f" data-x1="%.1f" data-y0="%.1f" data-y1="%.1f" data-max="%.0f"`+
+		` data-down="%s" data-up="%s">`,
+		w, h, start.Unix(), store.BucketSize.Seconds(), x(0), x(steps-1), y(0), y(maxV), maxV, csv(down), csv(up))
 	for _, f := range []float64{0, 0.5, 1} {
 		yy := y(maxV * f)
 		fmt.Fprintf(&b, `<line class="grid" x1="%.0f" x2="%.0f" y1="%.1f" y2="%.1f"/>`, padL, w, yy, yy)
@@ -199,7 +212,7 @@ func lineChart(buckets []store.Bucket) template.HTML {
 		fmt.Fprintf(&b, `<circle class="dot-down" cx="%.1f" cy="%.1f" r="4"/><circle class="dot-up" cx="%.1f" cy="%.1f" r="4"/>`,
 			x(0), y(down[0]), x(0), y(up[0]))
 	}
-	b.WriteString(`</svg>`)
+	b.WriteString(`</svg></div>`)
 	return template.HTML(b.String())
 }
 

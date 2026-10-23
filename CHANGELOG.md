@@ -6,6 +6,22 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-23
+
+### Added
+
+- Traffic charts show a tooltip with the time and the download and upload rate of the 5-minute
+  interval under the mouse pointer (or finger).
+
+### Fixed
+
+- Forwarding-table source `auto` falls back to BRIDGE-MIB when Q-BRIDGE reports bridge ports that
+  `dot1dBasePortIfIndex` does not list. TP-Link JetStream switches (e.g. T1500G-8T) report port
+  numbers in `dot1qTpFdbPort`, so their FDB entries were dropped and no traffic was attributed to
+  clients. The log now warns when FDB entries point to unknown interfaces.
+
+## [1.0.0] - 2026-10-22
+
 ### Added
 
 - Traffic accounting per client (MAC) and event via SNMP v2c/v3 with 64-bit counters: deltas only,
@@ -47,3 +63,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Documentation: installation, configuration reference and JSON Schema (generated), reverse proxy,
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
+
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/lan-dot-party/LANLeecher/releases/tag/v1.0.0

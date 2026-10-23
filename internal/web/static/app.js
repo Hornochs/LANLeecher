@@ -66,4 +66,133 @@
     if (msg && e.target.checked && !window.confirm(msg)) e.target.checked = false;
   });
   document.addEventListener("DOMContentLoaded", syncKind);
+  // Chart tooltip: time and rate of the 5-minute bucket under the pointer.
+  // lineChart (format.go) puts the values into data attributes of the SVG.
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  function formatBps(v) {
+    var units = ["bit/s", "kbit/s", "Mbit/s", "Gbit/s", "Tbit/s"];
+    var i = 0;
+    while (v >= 1000 && i < units.length - 1) { v /= 1000; i++; }
+    return (i === 0 ? v.toFixed(0) : v.toFixed(1)) + " " + units[i];
+  }
+
+  function svgEl(name, cls) {
+    var el = document.createElementNS(SVGNS, name);
+    el.setAttribute("class", cls);
+    return el;
+  }
+
+  function divEl(cls, text) {
+    var el = document.createElement("div");
+    el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+
+  function initChart(svg) {
+    var wrap = svg.parentNode;
+    var d = svg.dataset;
+    var down = d.down.split(",").map(Number);
+    var up = d.up.split(",").map(Number);
+    var n = down.length;
+    if (!n || n !== up.length) return;
+    var start = Number(d.start), step = Number(d.step);
+    var x0 = Number(d.x0), x1 = Number(d.x1), y0 = Number(d.y0), y1 = Number(d.y1), max = Number(d.max);
+    var vb = svg.viewBox.baseVal;
+
+    var legend = wrap.nextElementSibling;
+    var lDown = (legend && legend.dataset.lDown) || "Download";
+    var lUp = (legend && legend.dataset.lUp) || "Upload";
+    var lang = document.documentElement.lang || undefined;
+    var fmtDay = new Intl.DateTimeFormat(lang, { weekday: "short", day: "2-digit", month: "2-digit" });
+    var fmtTime = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit" });
+
+    var marker = svgEl("g", "hover");
+    var rule = svgEl("line", "hover-rule");
+    rule.setAttribute("y1", y1);
+    rule.setAttribute("y2", y0);
+    var dotDown = svgEl("circle", "hover-dot-down");
+    var dotUp = svgEl("circle", "hover-dot-up");
+    dotDown.setAttribute("r", 4);
+    dotUp.setAttribute("r", 4);
+    marker.appendChild(rule);
+    marker.appendChild(dotDown);
+    marker.appendChild(dotUp);
+    svg.appendChild(marker);
+
+    var tip = divEl("chart-tip");
+    var tTime = divEl("chart-tip-time");
+    var tDown = divEl("chart-tip-row");
+    var tUp = divEl("chart-tip-row");
+    tip.appendChild(tTime);
+    tip.appendChild(tDown);
+    tip.appendChild(tUp);
+    wrap.appendChild(tip);
+
+    function row(el, cls, label, v) {
+      el.textContent = "";
+      var sw = document.createElement("span");
+      sw.className = "swatch " + cls;
+      el.appendChild(sw);
+      el.appendChild(document.createTextNode(" " + label + " "));
+      var b = document.createElement("b");
+      b.textContent = formatBps(v);
+      el.appendChild(b);
+    }
+
+    function y(v) { return y0 - (y0 - y1) * v / max; }
+
+    function show(e) {
+      var r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      var vx = vb.x + (e.clientX - r.left) * vb.width / r.width;
+      var i = n === 1 ? 0 : Math.round((vx - x0) / (x1 - x0) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      var px = n === 1 ? x0 : x0 + i * (x1 - x0) / (n - 1);
+      rule.setAttribute("x1", px);
+      rule.setAttribute("x2", px);
+      dotDown.setAttribute("cx", px);
+      dotDown.setAttribute("cy", y(down[i]));
+      dotUp.setAttribute("cx", px);
+      dotUp.setAttribute("cy", y(up[i]));
+      marker.classList.add("on");
+
+      var from = new Date((start + i * step) * 1000);
+      var to = new Date((start + (i + 1) * step) * 1000);
+      tTime.textContent = fmtDay.format(from) + " " + fmtTime.format(from) + "–" + fmtTime.format(to);
+      row(tDown, "swatch-down", lDown, down[i]);
+      row(tUp, "swatch-up", lUp, up[i]);
+
+      // Position next to the marker, flipped to the left near the right edge.
+      tip.classList.add("on");
+      var left = (px - vb.x) * r.width / vb.width;
+      var top = (Math.min(y(down[i]), y(up[i])) - vb.y) * r.height / vb.height;
+      var tw = tip.offsetWidth, th = tip.offsetHeight;
+      var tl = left + 12;
+      if (tl + tw > r.width) tl = left - 12 - tw;
+      tip.style.left = Math.max(0, tl) + "px";
+      tip.style.top = Math.max(0, Math.min(r.height - th, top - th / 2)) + "px";
+    }
+
+    function hide() {
+      marker.classList.remove("on");
+      tip.classList.remove("on");
+    }
+
+    svg.addEventListener("pointermove", show);
+    svg.addEventListener("pointerdown", show);
+    svg.addEventListener("pointerleave", hide);
+  }
+
+  function initCharts(root) {
+    var charts = (root || document).querySelectorAll("svg.chart[data-down]:not([data-tip])");
+    for (var i = 0; i < charts.length; i++) {
+      charts[i].setAttribute("data-tip", "");
+      initChart(charts[i]);
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function () { initCharts(); });
+  // Charts inside content that htmx swaps in.
+  document.addEventListener("htmx:afterSettle", function (e) { initCharts(e.target); });
 })();
