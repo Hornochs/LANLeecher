@@ -6,6 +6,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Traffic charts show a tooltip with the time and the download and upload rate of the 5-minute
+  interval under the mouse pointer (or finger).
+
 ### Fixed
 
 - Forwarding-table source `auto` falls back to BRIDGE-MIB when Q-BRIDGE reports bridge ports that
