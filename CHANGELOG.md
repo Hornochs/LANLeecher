@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-25
+
 ### Added
 
 - Port groups are easier to name: the port's label is now called **display name** in the port
@@ -84,6 +86,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
 
-[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/lan-dot-party/LANLeecher/releases/tag/v1.0.0
