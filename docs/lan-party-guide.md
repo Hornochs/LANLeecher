@@ -19,13 +19,16 @@ A checklist for organizers: what to do before, during and after the event.
 - [ ] **Mark the uplinks.** Open every switch and set the role **uplink** on all ports to other
       switches, the router and the internet line. Ports marked "probably uplink" (LLDP neighbor or
       many MACs) are the first candidates; port channels and VLAN interfaces start as uplinks.
-      An unmarked uplink puts the traffic of a whole switch on one ranking entry.
+      An unmarked uplink puts the traffic of a whole switch on one ranking entry. If a flagged port
+      is not an uplink (a hypervisor with many VMs), press **Not an uplink** so the warning goes
+      away.
 - [ ] Set the role **server** on game servers, the LANcache and file servers (hidden in rankings,
       still counted). If such a machine sits on a normal table port, hide the **device** instead –
       that sticks even if it moves.
-- [ ] Set **multi-client** on ports with a small switch under the table and give them a **label**
-      ("Table 7"); they appear as one entry.
-- [ ] Give table ports labels if you like – they show up in port lists and for port groups.
+- [ ] Set **multi-client** on ports with a small switch under the table and give them a **display
+      name** ("Table 7"); they appear under that name as one entry in rankings and on the board.
+      The port list marks ports with several clients as port groups and says when they are unnamed.
+- [ ] Give table ports display names if you like – they show up in port lists and for port groups.
 - [ ] If you run Kea DHCP: add it under **Admin → DHCP sources** and trust its certificate
       ([kea.md](kea.md)). DHCP hostnames are then the preferred names.
 - [ ] Ask Windows guests to set the LAN network to **Private**: in the "Public" profile the Windows
@@ -48,6 +51,7 @@ A checklist for organizers: what to do before, during and after the event.
 - [ ] Review **Merges** now and then: a guest who changed network cards shows up under the same
       hostname with a new MAC. Merge only when you are sure; names like `PC` are not unique.
 - [ ] Use **Search** (MAC, IP or hostname) to answer "who is 10.0.3.57?".
+- [ ] A spike in the timeline? Click it on the dashboard to see who caused it.
 - [ ] A switch reboot or a LANLeecher restart loses nothing: counters are continued, resets are
       detected.
 

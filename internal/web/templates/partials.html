@@ -11,7 +11,7 @@
       <td class="num rank">{{.Rank}}</td>
       <td>
         {{if eq .Type "mac"}}<a href="/devices/{{.Key}}">{{.Name}}</a>
-        {{else}}<span class="badge">{{$.P.T "type.port_group"}}</span> {{.Name}}{{end}}
+        {{else}}<span class="badge">{{$.P.T "type.port_group"}}</span> {{if .SwitchID}}<a href="/switches/{{.SwitchID}}#port-{{.Key}}" title="{{$.P.T "rankings.group_link"}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}{{end}}
         {{if .Hidden}}<span class="badge badge-muted">{{$.P.T "label.hidden"}}</span>{{end}}
         {{if and .Hostname (ne .Hostname .Name)}}<span class="muted small">{{.Hostname}}</span>{{end}}
         {{if and (eq .Type "mac") (not .Hostname) .Vendor}}<span class="muted small">{{.Vendor}}</span>{{end}}
@@ -51,4 +51,18 @@
   {{if .Keep}}<option value="">{{.P.T "ports.keep"}}</option>{{end}}
   {{range .Roles}}<option value="{{.}}"{{if eq (print .) (print $.Current)}} selected{{end}}>{{$.P.T (print "role." .)}}</option>{{end}}
 </select>
+{{end}}
+
+{{define "traffic_window"}}{{/* dot: Page with windowData; loaded into #chart-detail */}}
+{{with .Data}}
+<div class="chart-detail">
+  <div class="card-head">
+    <h4>{{$.T "chart.window_title"}} {{dt .From}} – {{hm .To}}</h4>
+    <button type="button" class="link" data-detail-close aria-label="{{$.T "action.close"}}">✕</button>
+  </div>
+  <p class="muted small">{{$.T "col.down"}} <b>{{bytes .Total.BytesDown}}</b> ({{bps .DownBps}}) · {{$.T "col.up"}} <b>{{bytes .Total.BytesUp}}</b> ({{bps .UpBps}}){{if or .Unassigned.BytesDown .Unassigned.BytesUp}} · {{$.T "event.unassigned"}} {{bytes (add .Unassigned.BytesDown .Unassigned.BytesUp)}}{{end}}</p>
+  {{template "ranking_rows" .View}}
+  <p class="small"><a href="{{.RankingsURL}}">{{$.T "chart.open_rankings"}}</a></p>
+</div>
+{{end}}
 {{end}}

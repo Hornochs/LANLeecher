@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error)
 	if err != nil {
 		return nil, err
 	}
-	d.Chart = lineChart(buckets)
+	d.Chart = lineChartDetail(buckets, "/partials/traffic-window?event="+url.QueryEscape(ev.Slug), "chart-detail")
 	return d, nil
 }
 
@@ -510,7 +511,7 @@ func (s *Server) eventColumn(r *http.Request, p *Page, ev *store.Event, limit in
 		if err != nil {
 			return nil, err
 		}
-		c.Chart = lineChart(buckets)
+		c.Chart = lineChartDetail(buckets, "/partials/traffic-window?event="+url.QueryEscape(ev.Slug), "chart-detail")
 		if c.Ports, err = s.DB.PortTrafficByEvent(ctx, ev.ID); err != nil {
 			return nil, err
 		}

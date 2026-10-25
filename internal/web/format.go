@@ -17,6 +17,7 @@ var funcs = template.FuncMap{
 	"bps":     formatBps,
 	"dt":      formatTime,
 	"dtinput": formatTimeInput,
+	"hm":      func(t time.Time) string { return t.Local().Format("15:04") },
 	"ago":     formatAgo,
 	"pct":     pct,
 	"ratio":   ratio,
@@ -136,7 +137,12 @@ func ratio(down, up int64) string {
 
 // lineChart renders download and upload of buckets as an SVG. Colors come
 // from CSS classes, since the CSP forbids inline styles.
-func lineChart(buckets []store.Bucket) template.HTML {
+func lineChart(buckets []store.Bucket) template.HTML { return lineChartDetail(buckets, "", "") }
+
+// lineChartDetail is lineChart with a click detail: a click (or a drag) into
+// the chart loads detailURL&from=…&to=… (Unix seconds) into the element with
+// the ID target.
+func lineChartDetail(buckets []store.Bucket, detailURL, target string) template.HTML {
 	if len(buckets) == 0 {
 		return ""
 	}
@@ -196,8 +202,13 @@ func lineChart(buckets []store.Bucket) template.HTML {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<div class="chart-wrap"><svg class="chart" viewBox="0 0 %.0f %.0f" role="img" aria-label="Traffic"`+
 		` data-start="%d" data-step="%.0f" data-x0="%.1f" data-x1="%.1f" data-y0="%.1f" data-y1="%.1f" data-max="%.0f"`+
-		` data-down="%s" data-up="%s">`,
+		` data-down="%s" data-up="%s"`,
 		w, h, start.Unix(), store.BucketSize.Seconds(), x(0), x(steps-1), y(0), y(maxV), maxV, csv(down), csv(up))
+	if detailURL != "" {
+		fmt.Fprintf(&b, ` data-detail="%s" data-detail-target="%s"`, template.HTMLEscapeString(detailURL),
+			template.HTMLEscapeString(target))
+	}
+	b.WriteString(`>`)
 	for _, f := range []float64{0, 0.5, 1} {
 		yy := y(maxV * f)
 		fmt.Fprintf(&b, `<line class="grid" x1="%.0f" x2="%.0f" y1="%.1f" y2="%.1f"/>`, padL, w, yy, yy)

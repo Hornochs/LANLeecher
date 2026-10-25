@@ -76,7 +76,10 @@ Each port has one role that decides who gets credited for its traffic:
 
 An unmarked uplink is the most common configuration mistake: all traffic behind it lands on one port
 group and tops every ranking. LANLeecher marks a port as **probably uplink** when it has more MACs
-than `polling.uplink_mac_threshold` or an LLDP neighbor; an admin confirms it by setting the role.
+than `polling.uplink_mac_threshold` or an LLDP neighbor; an operator confirms it by setting the role.
+If the port is not an uplink – a hypervisor with many VMs, a server that speaks LLDP – an operator
+presses **Not an uplink**. The hint then stays off, whatever the port learns later, until the
+confirmation is withdrawn with **Check again** or the port is made an uplink.
 
 ## MAC, device and port group
 
@@ -90,7 +93,8 @@ than `polling.uplink_mac_threshold` or an LLDP neighbor; an admin confirms it by
 ![A device page: totals per event, timeline, hostname and IP history, ports](images/device.png)
 
 - A **port group** is the shared ranking entry of a port with several clients. It lists all MACs
-  seen on the port during the event.
+  seen on the port during the event and is named after the port's **display name** (e.g. "Table 7"),
+  which is set in the port list.
 - **Unassigned** traffic was seen on a client port while no MAC was learned there (e.g. right after
   link-up). It stays on the port and is never credited to a MAC that shows up later.
 
@@ -119,6 +123,14 @@ A total is the sum of its deltas, so a switch reboot or counter reset never redu
 Only 64-bit counters (SNMP v2c/v3) are used. Ports without them are marked "unsupported" and not
 counted; SNMP v1 is not supported at all.
 
+## Timeline
+
+The dashboard and every event page show the attributed traffic of the event per 5 minutes. Hovering
+shows time and rate. **Clicking** into the chart lists who caused the traffic in that 5-minute
+interval; **dragging** selects a longer range. The list includes hidden ports and devices (marked),
+because the timeline counts them too, plus the unassigned part. "Full ranking for this time range"
+opens the rankings page with the same range.
+
 ## Hiding
 
 A port or a device can be **hidden in rankings**. It is still fully counted; hiding only removes it
@@ -134,7 +146,7 @@ The name of a ranking entry is, in this order:
 2. the preferred **hostname** (sources ranked by `resolver.hostname_priority`),
 3. the MAC address.
 
-Port groups use the port **label**, or switch and port name. Outside of logged-in views and the
+Port groups use the port's **display name** (called *label* in the API), or switch and port name. Outside of logged-in views and the
 `read:clients` scope, a MAC is never shown as a name; such devices appear as `Client #<id>`.
 
 ## Resolvers

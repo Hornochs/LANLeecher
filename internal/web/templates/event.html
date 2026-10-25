@@ -17,7 +17,8 @@
   <div class="stat"><span class="stat-label">{{$.T "col.up"}}</span><span class="stat-value up">{{bytes .Summary.BytesUp}}</span></div>
   <div class="stat"><span class="stat-label">{{$.T "dashboard.clients"}}</span><span class="stat-value">{{.Summary.Clients}}</span></div>
 </div>
-{{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}</section>{{end}}
+{{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}<p class="muted small">{{$.T "chart.click_hint"}}</p>
+  <div id="chart-detail" aria-live="polite"></div></section>{{end}}
 <div class="grid-2">
   <section class="card"><h3>{{$.T "dashboard.top_down"}}</h3>{{template "ranking_rows" .TopDown}}</section>
   <section class="card"><h3>{{$.T "dashboard.top_up"}}</h3>{{template "ranking_rows" .TopUp}}</section>

@@ -40,6 +40,8 @@ type RankEntry struct {
 	Hostname  string
 	// Vendor of the newest MAC (devices only).
 	Vendor string
+	// SwitchID is the switch of a port group's port.
+	SwitchID int64
 }
 
 // Total returns down + up.
@@ -141,7 +143,7 @@ func (db *DB) Rankings(ctx context.Context, q RankingQuery) ([]RankEntry, error)
 			e.Name, e.MACs, e.IP, e.Hostname, e.Vendor = l.Name, l.MACs, l.IP, l.Hostname, l.Vendor
 		} else {
 			l := groups[e.Key]
-			e.Name, e.MACs = l.Name, l.MACs
+			e.Name, e.MACs, e.SwitchID = l.Name, l.MACs, l.SwitchID
 		}
 	}
 	return out, nil
@@ -154,6 +156,8 @@ type Label struct {
 	IP       string
 	Hostname string
 	Vendor   string
+	// SwitchID is set for port groups.
+	SwitchID int64
 }
 
 // DeviceLabels returns display labels for devices: display name, else the
@@ -232,7 +236,7 @@ func (db *DB) portGroupLabels(ctx context.Context, portIDs []int64, eventID int6
 			rows.Close()
 			return nil, err
 		}
-		out[p.ID] = Label{Name: p.Name()}
+		out[p.ID] = Label{Name: p.Name(), SwitchID: p.SwitchID}
 	}
 	rows.Close()
 

@@ -6,6 +6,28 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-25
+
+### Added
+
+- Port groups are easier to name: the port's label is now called **display name** in the port
+  list, ports whose traffic goes to a port group say so (and whether they are still unnamed), and
+  port groups in rankings link to their port. The name appears in rankings, on the board and in
+  the API.
+- **Not an uplink:** a port flagged as "probably uplink" (many MACs or an LLDP neighbor) can be
+  confirmed as not an uplink, e.g. a hypervisor with many VMs. The hint and the warning banner then
+  stay off until the confirmation is withdrawn with "Check again" or the port becomes an uplink.
+  Available per port and for a selection of ports; recorded in the audit log.
+- Clicking into the traffic timeline of the dashboard or an event page shows which clients caused
+  the traffic in that 5-minute interval; dragging selects a longer range. The detail lists the top
+  10 by total (hidden entries included and marked, as the timeline counts them too), the totals and
+  average rates of the range, unassigned traffic and a link to the full ranking for the range.
+
+### Fixed
+
+- Pressing Enter in a field of the port list saves the rows. It used to trigger "Apply to
+  selection", so a changed label or role was lost.
+
 ## [1.0.1] - 2026-10-23
 
 ### Added
@@ -64,6 +86,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
 
-[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/lan-dot-party/LANLeecher/releases/tag/v1.0.0
