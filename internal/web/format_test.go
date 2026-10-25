@@ -31,3 +31,19 @@ func TestLineChartTooltipData(t *testing.T) {
 	}
 }
 
+
+func TestLineChartDetailData(t *testing.T) {
+	buckets := []store.Bucket{{Start: time.Unix(1_700_000_100, 0), BytesDown: 1}}
+	if got := string(lineChart(buckets)); strings.Contains(got, "data-detail") {
+		t.Errorf("plain chart has a click detail:\n%s", got)
+	}
+	got := string(lineChartDetail(buckets, "/partials/traffic-window?event=a&b", "chart-detail"))
+	for _, want := range []string{
+		`data-detail="/partials/traffic-window?event=a&amp;b"`,
+		`data-detail-target="chart-detail">`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("chart is missing %q:\n%s", want, got)
+		}
+	}
+}

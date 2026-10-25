@@ -136,7 +136,7 @@ Regardless of the role, every port delta is additionally booked in `port_traffic
 
 If a guest moves their computer to another port or switch, their total continues under the same MAC.
 
-**Uplink detection:** a port with more than N MACs (default 10) or with an LLDP neighbor is marked "probably uplink" in the UI. An admin has to confirm it. An unmarked uplink is the most common mistake and skews everything – hence prominent in UI and docs.
+**Uplink detection:** a port with more than N MACs (default 10) or with an LLDP neighbor is marked "probably uplink" in the UI. An operator confirms it by setting the role `uplink`, or confirms that it is *not* an uplink (e.g. a hypervisor with many VMs), which keeps the hint off. An unmarked uplink is the most common mistake and skews everything – hence prominent in UI and docs.
 
 ### Finding IP and hostname
 
@@ -198,7 +198,7 @@ The model separates master data (switches, ports, devices), running state (last 
 | Table | Important fields | Purpose |
 | --- | --- | --- |
 | `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled | Configured switches |
-| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`), ranking visibility and uplink hint |
+| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`), display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
 | `port_counter_state` | port\_id, in\_raw, out\_raw, counter\_bits, sys\_uptime, discontinuity, polled\_at | Last raw value for delta computation |
 | `port_traffic_totals` | event\_id, port\_id, bytes\_down, bytes\_up, updated\_at | Traffic of every port per event, uplinks included |
 | `events` | id, name, slug, started\_at, ended\_at, notes | LAN events; at most one active |
@@ -236,7 +236,8 @@ Traffic is always booked into an active event. Without an active event, LANLeech
 ### Managing ports
 
 - After a switch is added, LANLeecher reads all interfaces with `ifName`, `ifAlias`, status and speed and shows them as a table. From then on, every port is counted.
-- Per port: choose a role (`client` by default, `multi-client`, `server`, `uplink`), set a label (e.g. "Game server rack", "Table 7") and the "Hide in rankings" switch.
+- Per port: choose a role (`client` by default, `multi-client`, `server`, `uplink`), set a display name (e.g. "Game server rack", "Table 7"; it names the port group in rankings and on the board) and the "Hide in rankings" switch.
+- A port flagged as "probably uplink" can be confirmed as **not an uplink** (e.g. a hypervisor with many VMs); the hint stays off until the confirmation is withdrawn or the port becomes an uplink.
 - Multi-select, e.g. to set all ports 45–48 to uplink or hide them at once.
 - Next to each port: currently learned MACs with hostname and the traffic in the active event.
 - Virtual interfaces (VLAN SVIs, loopback) are hidden by a filter in the port list; port channels themselves are typically uplinks.
@@ -256,7 +257,7 @@ The web UI is entirely behind a login; roles and usage follow LANPilot so that o
 
 ### Pages
 
-- **Dashboard** – active event, total traffic, top 10 download/upload, live throughput (htmx refresh every 15 s), switch status.
+- **Dashboard** – active event, total traffic, top 10 download/upload, live throughput (htmx refresh every 15 s), switch status. A click into the timeline (dashboard and event page) lists the clients behind the traffic of that 5-minute interval; a drag selects a range.
 - **Rankings** – top downloaders, top uploaders, total; filter by event, switch, time range; top 10/20/50 selectable; hidden ports and devices can be shown temporarily.
 - **Search** – one search field for MAC (any notation), IP or hostname, also partial matches.
 - **Device/MAC detail** – download and upload totals per event, timeline of both directions, IP and hostname history, ports, merge suggestions.

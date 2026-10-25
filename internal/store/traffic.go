@@ -169,3 +169,15 @@ func (db *DB) buckets(ctx context.Context, query string, args ...any) ([]Bucket,
 	}
 	return out, rows.Err()
 }
+
+// WindowTotals sums the 5-minute buckets of an event in [from, to): all
+// attributed traffic (the event timeline) and the part without a MAC.
+func (db *DB) WindowTotals(ctx context.Context, eventID int64, from, to time.Time) (all, unassigned PortTraffic, err error) {
+	err = db.sql.QueryRowContext(ctx, `SELECT COALESCE(SUM(bytes_down), 0), COALESCE(SUM(bytes_up), 0),
+			COALESCE(SUM(CASE WHEN subject_type = 'unassigned' THEN bytes_down END), 0),
+			COALESCE(SUM(CASE WHEN subject_type = 'unassigned' THEN bytes_up END), 0)
+		FROM traffic_buckets WHERE event_id = ? AND bucket_start >= ? AND bucket_start < ?`,
+		eventID, unix(from.Truncate(BucketSize)), unix(to)).
+		Scan(&all.BytesDown, &all.BytesUp, &unassigned.BytesDown, &unassigned.BytesUp)
+	return all, unassigned, err
+}

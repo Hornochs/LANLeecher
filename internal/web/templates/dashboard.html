@@ -51,7 +51,9 @@
       {{template "ranking_rows" .TopUp}}
     </section>
   </div>
-  {{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}</section>{{end}}
+  {{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}<p class="muted small">{{$.T "chart.click_hint"}}</p>
+    {{/* hx-preserve keeps an open detail across the 15-second refresh. */}}
+    <div id="chart-detail" hx-preserve="true" aria-live="polite"></div></section>{{end}}
   {{else}}
   <section class="card empty">
     <h2>{{$.T "dashboard.no_event"}}</h2>

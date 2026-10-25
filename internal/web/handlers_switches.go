@@ -293,7 +293,10 @@ func (s *Server) switchTest(w http.ResponseWriter, r *http.Request) {
 }
 
 type portRow struct {
-	Port       *store.Port
+	Port *store.Port
+	// IsGroup is true when the port's traffic goes to a port group, which
+	// is named after the port label in rankings and on the board.
+	IsGroup    bool
 	RoleSelect roleSelect
 	MACs       []store.MACInfo
 	Traffic    store.PortTraffic
@@ -369,6 +372,8 @@ func (s *Server) ports(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		row.IsGroup = port.Role == accounting.RoleMultiClient ||
+			(port.Role != accounting.RoleUplink && len(row.MACs) > 1)
 		if rate, ok := rates[port.ID]; ok {
 			row.Rate, row.HasRate = rate, true
 		}
@@ -417,7 +422,16 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			f := false
 			settings.Hidden = &f
 		}
-		if len(ids) > 0 && (settings.Role != nil || settings.Hidden != nil) {
+		switch r.PostFormValue("bulk_uplink") {
+		case "dismiss":
+			t := true
+			settings.UplinkDismissed = &t
+		case "restore":
+			f := false
+			settings.UplinkDismissed = &f
+		}
+		settings.UplinkThreshold = s.Cfg.Polling.UplinkMACThreshold
+		if len(ids) > 0 && (settings.Role != nil || settings.Hidden != nil || settings.UplinkDismissed != nil) {
 			if err := s.DB.UpdatePorts(r.Context(), ids, settings); err != nil {
 				s.fail(w, r, err)
 				return
@@ -452,7 +466,17 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			if label != port.Label {
 				settings.Label = &label
 			}
-			if settings.Role == nil && settings.Hidden == nil && settings.Label == nil {
+			// The "not an uplink" and "check again" buttons of a row.
+			switch r.PostFormValue("uplink_hint") {
+			case "dismiss:" + key:
+				t := true
+				settings.UplinkDismissed = &t
+			case "restore:" + key:
+				f := false
+				settings.UplinkDismissed = &f
+			}
+			settings.UplinkThreshold = s.Cfg.Polling.UplinkMACThreshold
+			if settings.Role == nil && settings.Hidden == nil && settings.Label == nil && settings.UplinkDismissed == nil {
 				continue
 			}
 			if err := s.DB.UpdatePorts(r.Context(), []int64{id}, settings); err != nil {
@@ -464,6 +488,11 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if changed > 0 {
 		s.Audit(r, "ports.update", sw.Name, strconv.Itoa(changed)+" ports")
+	}
+	if action, id, ok := strings.Cut(r.PostFormValue("uplink_hint"), ":"); ok && (action == "dismiss" || action == "restore") {
+		if n, err := strconv.ParseInt(id, 10, 64); err == nil && byID[n] != nil {
+			s.Audit(r, "ports.uplink_"+action, sw.Name, byID[n].ShortName())
+		}
 	}
 	back := "/switches/" + strconv.FormatInt(sw.ID, 10) + "?ok=saved"
 	if r.PostFormValue("all") == "1" {

@@ -183,7 +183,96 @@
     svg.addEventListener("pointermove", show);
     svg.addEventListener("pointerdown", show);
     svg.addEventListener("pointerleave", hide);
+
+    if (d.detail) initDetail(svg, n, start, step, x0, x1, y0, y1, vb);
   }
+
+  // Chart detail: a click into the chart selects its 5-minute bucket, a drag
+  // selects a range. The server renders who caused the traffic in that range
+  // (/partials/traffic-window) into the element named by data-detail-target.
+  // The selection survives the periodic refresh of the dashboard.
+  var selections = {};
+
+  function initDetail(svg, n, start, step, x0, x1, y0, y1, vb) {
+    var d = svg.dataset;
+    var band = svgEl("rect", "selection");
+    band.setAttribute("y", y1);
+    band.setAttribute("height", Math.max(0, y0 - y1));
+    svg.insertBefore(band, svg.firstChild);
+    svg.classList.add("clickable");
+    var half = n > 1 ? (x1 - x0) / (n - 1) / 2 : 6;
+
+    function px(i) { return n === 1 ? x0 : x0 + i * (x1 - x0) / (n - 1); }
+
+    function index(e) {
+      var r = svg.getBoundingClientRect();
+      var vx = vb.x + (e.clientX - r.left) * vb.width / r.width;
+      var i = n === 1 ? 0 : Math.round((vx - x0) / (x1 - x0) * (n - 1));
+      return Math.max(0, Math.min(n - 1, i));
+    }
+
+    function draw(lo, hi) {
+      var a = Math.max(vb.x, px(lo) - half), b = Math.min(vb.x + vb.width, px(hi) + half);
+      band.setAttribute("x", a);
+      band.setAttribute("width", Math.max(1, b - a));
+      band.classList.add("on");
+    }
+
+    var anchor = null;
+    svg.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      anchor = index(e);
+      // Keep receiving moves while the pointer drags outside of the chart.
+      if (svg.setPointerCapture) svg.setPointerCapture(e.pointerId);
+      draw(anchor, anchor);
+    });
+    svg.addEventListener("pointermove", function (e) {
+      if (anchor === null) return;
+      var i = index(e);
+      draw(Math.min(anchor, i), Math.max(anchor, i));
+    });
+    svg.addEventListener("pointercancel", function () { anchor = null; restore(); });
+    svg.addEventListener("pointerup", function (e) {
+      if (anchor === null) return;
+      var i = index(e);
+      var lo = Math.min(anchor, i), hi = Math.max(anchor, i);
+      anchor = null;
+      var sel = { from: start + lo * step, to: start + (hi + 1) * step };
+      selections[d.detail] = sel;
+      draw(lo, hi);
+      load(d.detail, d.detailTarget, sel);
+    });
+
+    // Redraw a kept selection after the chart was re-rendered.
+    function restore() {
+      var sel = selections[d.detail];
+      if (!sel) { band.classList.remove("on"); return; }
+      var lo = Math.round((sel.from - start) / step), hi = Math.round((sel.to - start) / step) - 1;
+      if (hi < 0 || lo > n - 1) { band.classList.remove("on"); return; }
+      draw(Math.max(0, lo), Math.min(n - 1, hi));
+    }
+    restore();
+  }
+
+  function load(url, targetID, sel) {
+    var target = document.getElementById(targetID);
+    if (!target || !window.htmx) return;
+    window.htmx.ajax("GET", url + "&from=" + sel.from + "&to=" + sel.to, { target: target, swap: "innerHTML" });
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-detail-close]");
+    if (!btn) return;
+    var box = btn.closest("[id]");
+    if (!box) return;
+    box.textContent = "";
+    var charts = document.querySelectorAll('svg.chart[data-detail-target="' + box.id + '"]');
+    for (var i = 0; i < charts.length; i++) {
+      delete selections[charts[i].dataset.detail];
+      var band = charts[i].querySelector("rect.selection");
+      if (band) band.classList.remove("on");
+    }
+  });
 
   function initCharts(root) {
     var charts = (root || document).querySelectorAll("svg.chart[data-down]:not([data-tip])");

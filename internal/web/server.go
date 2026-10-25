@@ -71,6 +71,7 @@ func (s *Server) Routes() http.Handler {
 		r.Post("/logout", s.logout)
 		r.Get("/", s.dashboard)
 		r.Get("/partials/dashboard", s.dashboardLive)
+		r.Get("/partials/traffic-window", s.trafficWindow)
 		r.Get("/rankings", s.rankings)
 		r.Get("/hidden", s.hiddenList)
 		r.Get("/search", s.search)

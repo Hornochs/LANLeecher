@@ -64,8 +64,9 @@ func (tx *Tx) RecordSightings(ctx context.Context, switchID int64, sightings []S
 			return err
 		}
 	}
-	// Ports already confirmed as uplink need no hint.
-	_, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_suspect = 0 WHERE switch_id = ? AND role = 'uplink'`, switchID)
+	// Ports already confirmed as uplink, or as not an uplink, need no hint.
+	_, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_suspect = 0
+		WHERE switch_id = ? AND (role = 'uplink' OR uplink_dismissed = 1)`, switchID)
 	return err
 }
 

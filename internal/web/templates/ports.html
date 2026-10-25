@@ -18,14 +18,21 @@
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="hidden" name="all" value="{{if .ShowAll}}1{{end}}">
   {{if $.Can "operator"}}
+  {{/* Default button: Enter in a name field saves the rows instead of applying the bulk settings. */}}
+  <button type="submit" name="action" value="save" class="default-submit" tabindex="-1" aria-hidden="true"></button>
   <div class="bulk">
     <strong>{{$.T "ports.bulk"}}:</strong>
-    {{template "role_select" .BulkRole}}
-    <select name="bulk_hidden">
+    <label class="inline">{{$.T "col.role"}} {{template "role_select" .BulkRole}}</label>
+    <label class="inline">{{$.T "ports.visibility"}} <select name="bulk_hidden">
       <option value="">{{$.T "ports.keep"}}</option>
       <option value="1">{{$.T "ports.hide"}}</option>
       <option value="0">{{$.T "ports.show"}}</option>
-    </select>
+    </select></label>
+    <label class="inline">{{$.T "ports.uplink_hint"}} <select name="bulk_uplink">
+      <option value="">{{$.T "ports.keep"}}</option>
+      <option value="dismiss">{{$.T "ports.not_uplink"}}</option>
+      <option value="restore">{{$.T "ports.uplink_restore"}}</option>
+    </select></label>
     <button type="submit" name="action" value="bulk">{{$.T "ports.apply_selected"}}</button>
     <button type="submit" name="action" value="save" class="primary">{{$.T "ports.save_all"}}</button>
   </div>
@@ -34,22 +41,27 @@
   <table class="ports">
     <thead><tr>
       {{if $.Can "operator"}}<th><input type="checkbox" data-select-all="sel" aria-label="{{$.T "ports.select_all"}}"></th>{{end}}
-      <th>{{$.T "col.port"}}</th><th>{{$.T "col.status"}}</th><th>{{$.T "col.role"}}</th><th>{{$.T "ports.label"}}</th>
+      <th>{{$.T "col.port"}}</th><th>{{$.T "col.status"}}</th><th>{{$.T "col.role"}}</th><th title="{{$.T "ports.label_hint"}}">{{$.T "ports.label"}}</th>
       <th>{{$.T "ports.hidden_short"}}</th><th>{{$.T "ports.macs"}}</th>
       <th class="num">{{$.T "ports.event_traffic"}}</th><th class="num">{{$.T "ports.live"}}</th>
     </tr></thead>
     <tbody>
     {{range .Rows}}
-    <tr class="{{if .Port.Hidden}}hidden-row{{end}}{{if .Port.UplinkSuspect}} suspect-row{{end}}">
+    <tr id="port-{{.Port.ID}}" class="{{if .Port.Hidden}}hidden-row{{end}}{{if .Port.UplinkSuspect}} suspect-row{{end}}">
       {{if $.Can "operator"}}<td><input type="checkbox" name="sel" value="{{.Port.ID}}"><input type="hidden" name="port_ids" value="{{.Port.ID}}"></td>{{end}}
       <td><strong>{{.Port.ShortName}}</strong>{{if .Port.IfAlias}} <span class="muted small">{{.Port.IfAlias}}</span>{{end}}
         {{if not .Port.Physical}}<span class="badge badge-muted">{{$.T "ports.virtual"}}</span>{{end}}
         {{if not .Port.HCSupported}}<span class="badge badge-warn" title="{{$.T "ports.no_hc_hint"}}">{{$.T "ports.no_hc"}}</span>{{end}}
-        {{if .Port.UplinkSuspect}}<span class="badge badge-warn" title="{{$.T "ports.uplink_suspect_hint"}}">{{$.T "ports.uplink_suspect"}}</span>{{end}}
+        {{if .Port.UplinkSuspect}}<span class="badge badge-warn" title="{{$.T "ports.uplink_suspect_hint"}}">{{$.T "ports.uplink_suspect"}}</span>
+          {{if $.Can "operator"}}<button type="submit" name="uplink_hint" value="dismiss:{{.Port.ID}}" class="mini" title="{{$.T "ports.not_uplink_hint"}}">{{$.T "ports.not_uplink"}}</button>{{end}}
+        {{else if .Port.UplinkDismissed}}<span class="badge badge-muted" title="{{$.T "ports.uplink_dismissed_hint"}}">{{$.T "ports.uplink_dismissed"}}</span>
+          {{if $.Can "operator"}}<button type="submit" name="uplink_hint" value="restore:{{.Port.ID}}" class="mini">{{$.T "ports.uplink_restore"}}</button>{{end}}
+        {{end}}
         {{if .Port.LLDPNeighbor}}<br><span class="muted small">LLDP: {{.Port.LLDPNeighbor}}</span>{{end}}</td>
       <td class="nowrap">{{if .Port.OperUp}}<span class="dot dot-ok"></span> {{if .Port.SpeedMbps}}{{.Port.SpeedMbps}} M{{else}}up{{end}}{{else}}<span class="dot dot-off"></span> down{{end}}</td>
       <td>{{if $.Can "operator"}}{{template "role_select" .RoleSelect}}{{else}}<span class="badge role-{{.Port.Role}}">{{$.T (print "role." .Port.Role)}}</span>{{end}}</td>
-      <td>{{if $.Can "operator"}}<input name="label_{{.Port.ID}}" value="{{.Port.Label}}" maxlength="60" class="narrow">{{else}}{{.Port.Label}}{{end}}</td>
+      <td>{{if $.Can "operator"}}<input name="label_{{.Port.ID}}" value="{{.Port.Label}}" maxlength="60" class="narrow"{{if .IsGroup}} placeholder="{{$.T "ports.label_placeholder"}}"{{end}} aria-label="{{$.T "ports.label"}} {{.Port.ShortName}}">{{else}}{{.Port.Label}}{{end}}
+        {{if .IsGroup}}<br><span class="muted small" title="{{$.T "ports.group_hint"}}">{{$.T "type.port_group"}}{{if not .Port.Label}} · {{$.T "ports.group_unnamed"}}{{end}}</span>{{end}}</td>
       <td>{{if $.Can "operator"}}<input type="checkbox" name="hidden_{{.Port.ID}}" value="1"{{if .Port.Hidden}} checked{{end}} aria-label="{{$.T "ports.hide"}}">{{else if .Port.Hidden}}✓{{end}}</td>
       <td class="small">
         {{if eq (print .Port.Role) "uplink"}}<span class="muted">{{.Port.MACCount}} MACs</span>

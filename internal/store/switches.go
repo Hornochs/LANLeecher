@@ -138,7 +138,10 @@ type Port struct {
 	Hidden        bool
 	MACCount      int
 	UplinkSuspect bool
-	LastSeen      time.Time
+	// UplinkDismissed is set when an operator confirmed that the port is not
+	// an uplink; the uplink hint then stays off.
+	UplinkDismissed bool
+	LastSeen        time.Time
 }
 
 // Name returns the label, or switch and interface name.
@@ -162,12 +165,12 @@ func (p *Port) ShortName() string {
 
 const portCols = `p.id, p.switch_id, s.name, p.if_index, p.if_name, p.if_alias, p.if_descr, p.if_type, p.physical,
 	p.lldp_neighbor, p.oper_up, p.speed_mbps, p.hc_supported, p.role, p.label, p.hidden_in_rankings, p.mac_count,
-	p.uplink_suspect, p.last_seen`
+	p.uplink_suspect, p.uplink_dismissed, p.last_seen`
 
 func portDest(p *Port, role *string, seen *int64) []any {
 	return []any{&p.ID, &p.SwitchID, &p.SwitchName, &p.IfIndex, &p.IfName, &p.IfAlias, &p.IfDescr, &p.IfType, &p.Physical,
 		&p.LLDPNeighbor, &p.OperUp, &p.SpeedMbps, &p.HCSupported, role, &p.Label, &p.Hidden, &p.MACCount,
-		&p.UplinkSuspect, seen}
+		&p.UplinkSuspect, &p.UplinkDismissed, seen}
 }
 
 func scanPort(row interface{ Scan(...any) error }) (*Port, error) {
@@ -274,10 +277,17 @@ type PortSettings struct {
 	Role   *accounting.Role
 	Label  *string
 	Hidden *bool
+	// UplinkDismissed confirms (true) that a port is not an uplink, or
+	// withdraws that confirmation (false).
+	UplinkDismissed *bool
+	// UplinkThreshold is polling.uplink_mac_threshold. It is used to show the
+	// hint again right away when a confirmation is withdrawn.
+	UplinkThreshold int
 }
 
 // UpdatePorts applies settings to several ports. Setting a role without an
-// explicit Hidden value applies the role's default visibility.
+// explicit Hidden value applies the role's default visibility. Making a port
+// an uplink clears a "not an uplink" confirmation.
 func (db *DB) UpdatePorts(ctx context.Context, ids []int64, s PortSettings) error {
 	return db.InTx(ctx, func(tx *Tx) error {
 		for _, id := range ids {
@@ -300,6 +310,25 @@ func (db *DB) UpdatePorts(ctx context.Context, ids []int64, s PortSettings) erro
 				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET label = ? WHERE id = ?`, *s.Label, id); err != nil {
 					return err
 				}
+			}
+			switch {
+			case s.UplinkDismissed != nil && *s.UplinkDismissed:
+				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 1, uplink_suspect = 0
+					WHERE id = ? AND role <> 'uplink'`, id); err != nil {
+					return err
+				}
+			case s.UplinkDismissed != nil:
+				// Re-evaluate the hint from the last forwarding-table read
+				// instead of waiting for the next one.
+				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0,
+					uplink_suspect = CASE WHEN role <> 'uplink' AND (lldp_neighbor <> '' OR mac_count > ?) THEN 1 ELSE 0 END
+					WHERE id = ?`, s.UplinkThreshold, id); err != nil {
+					return err
+				}
+			}
+			if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0 WHERE id = ? AND role = 'uplink'`,
+				id); err != nil {
+				return err
 			}
 		}
 		return nil
