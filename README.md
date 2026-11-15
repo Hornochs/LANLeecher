@@ -64,6 +64,24 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 
 ## Quick start
 
+### From the lan.party package repository (recommended)
+
+Set up the repository once, then install and update the package with your system's package manager.
+Instructions for Debian/Ubuntu, Fedora/RHEL/Rocky, Arch Linux and Alpine: **https://repo.lan.party**
+
+```sh
+curl -fsSL https://repo.lan.party/setup.sh | sudo sh   # or follow the manual steps on repo.lan.party
+
+sudo apt install lanleecher      # Debian / Ubuntu
+sudo dnf install lanleecher      # Fedora / RHEL / Rocky
+sudo pacman -S lanleecher        # Arch Linux
+sudo apk add lanleecher          # Alpine
+```
+
+New releases then arrive with your normal system updates (`apt upgrade`, `dnf upgrade`, `pacman -Syu`, `apk upgrade`).
+
+### Manual download from GitHub releases
+
 Download the package for your system from the [releases](https://github.com/lan-dot-party/LANLeecher/releases):
 
 ```bash
