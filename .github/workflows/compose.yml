@@ -1,0 +1,56 @@
+name: Compose examples
+
+on:
+  pull_request:
+    paths: [compose.yaml, compose.bind.yaml, .github/workflows/compose.yml]
+  push:
+    branches: [main]
+    paths: [compose.yaml, compose.bind.yaml, .github/workflows/compose.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        file: [compose.yaml, compose.bind.yaml]
+    env:
+      FILE: ${{ matrix.file }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare data directory
+        if: matrix.file == 'compose.bind.yaml'
+        run: mkdir -p data && sudo chown 100:101 data
+      - name: Start
+        run: docker compose -f "$FILE" up -d
+      - name: Wait for healthy
+        run: |
+          cid=$(docker compose -f "$FILE" ps -q lanleecher)
+          for _ in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$cid")
+            [ "$status" = healthy ] && exit 0
+            sleep 2
+          done
+          echo "container did not become healthy (last status: $status)" >&2
+          exit 1
+      - name: Check health endpoint
+        run: curl -fsS http://127.0.0.1:9040/health
+      - name: Create a user (proves the data directory is writable)
+        run: |
+          echo 'ci-password-1234' | docker compose -f "$FILE" exec -T lanleecher \
+            lanleecher user create ci-admin --role admin
+      - name: Check data files
+        if: matrix.file == 'compose.bind.yaml'
+        run: |
+          test -f data/lanleecher.db
+          test -f data/secret.key
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f "$FILE" logs --no-color
+      - name: Clean up
+        if: always()
+        run: docker compose -f "$FILE" down -v
