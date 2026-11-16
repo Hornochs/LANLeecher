@@ -8,6 +8,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Docker Compose examples:** `compose.yaml` (named volume) is revised and `compose.bind.yaml`
+  (data in `./data`, owned by UID 100 / GID 101) is new; both are tested in CI. The Docker section
+  of [installation.md](docs/installation.md#docker-compose) explains when to use which, backup
+  and the reverse proxy setup.
 - **Planned events:** under Events → Planned events, an event can be entered with its first and
   last day (optionally with start and end times). LANLeecher starts it at the start and stops it at
   the end by itself, to the second, and records both in the audit log as actor `schedule`. Planned

@@ -1,21 +1,30 @@
-# LANLeecher with Docker Compose.
+# LANLeecher with Docker Compose – data in a named Docker volume.
+# Variant with a local directory: compose.bind.yaml
 #
-#   docker compose up -d
-#   docker compose exec lanleecher lanleecher user create admin --role admin
+#   docker compose up -d                                   # start
+#   docker compose exec lanleecher lanleecher user create admin --role admin   # first admin
+#   docker compose logs -f lanleecher                      # logs
+#   docker compose pull && docker compose up -d            # update
+#   docker compose exec lanleecher lanleecher backup       # backup, see docs/installation.md
 #
-# Host networking lets the resolvers reach clients via NetBIOS/mDNS and read
-# the host's neighbor table; SNMP to the switches works either way.
 services:
   lanleecher:
+    # Pin a version tag (e.g. 1.2.3, without "v") for production instead of "latest".
     image: ghcr.io/lan-dot-party/lanleecher:latest
     restart: unless-stopped
+    # Host networking: the resolvers need NetBIOS/mDNS to reach clients and the
+    # host's neighbor table. "ports:" is not used; the service listens on the
+    # host's port 9040 (config "listen").
     network_mode: host
-    # Time zone for displayed times and planned events (default UTC)
-    # environment:
-    #   TZ: Europe/Berlin
+    environment:
+      # Time zone for displayed times and planned events (default UTC)
+      TZ: Europe/Berlin
     volumes:
       - lanleecher-data:/var/lib/lanleecher
-      # Optional: own configuration
+      # Optional: own configuration, read-only. Needed to set public_url (e.g.
+      # https://leecher.example.org, which also makes cookies Secure) and, behind a
+      # reverse proxy on the same host, listen: 127.0.0.1:9040. There are no
+      # environment variables for these settings.
       # - ./config.yaml:/etc/lanleecher/config.yaml:ro
 
 volumes:

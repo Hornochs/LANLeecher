@@ -57,15 +57,59 @@ Then open `public_url`, log in and continue with the [LAN party guide](lan-party
 
 ## Docker
 
+The image `ghcr.io/lan-dot-party/lanleecher` exists for amd64, arm64 and armv7 (tags `latest` and the
+plain version, e.g. `1.2.3`; pin a version for production). It runs as user `lanleecher` (UID 100,
+GID 101) and keeps the database `lanleecher.db` and the key `secret.key` in the volume
+`/var/lib/lanleecher`. The built-in configuration `/etc/lanleecher/config.yaml` listens on
+`0.0.0.0:9040` with `public_url: http://localhost:9040`; mount your own file over it to change
+values. There is no environment variable for `listen` or `public_url`; `TZ` sets the time zone.
+
+### Docker Compose
+
+The repository ships two examples that differ only in where the data lives:
+
+| File | Data | Choose it when |
+| --- | --- | --- |
+| `compose.yaml` | named volume `lanleecher-data` | Docker should manage the data; nothing to prepare |
+| `compose.bind.yaml` | local directory `./data` | you want the data visible on the host and easy to back up; the directory must belong to UID 100 / GID 101 |
+
+For the local-path variant, prepare the directory once and add `-f compose.bind.yaml` to every
+`docker compose` command below:
+
 ```bash
-docker compose up -d          # uses compose.yaml from the repository
-docker compose exec lanleecher lanleecher user create admin --role admin
+mkdir -p data && sudo chown 100:101 data
 ```
 
-The image `ghcr.io/lan-dot-party/lanleecher` exists for amd64, arm64 and armv7. Data lives in the
-volume `/var/lib/lanleecher`; mount your own configuration to `/etc/lanleecher/config.yaml`. Host
-networking (as in `compose.yaml`) lets the resolvers reach clients via NetBIOS and mDNS and read the
-host's neighbor table.
+```bash
+docker compose up -d                                                      # start
+docker compose exec lanleecher lanleecher user create admin --role admin  # first admin (asks for a password)
+docker compose logs -f lanleecher                                         # logs
+docker compose pull && docker compose up -d                               # update
+```
+
+Take a backup before every update. `lanleecher backup` writes a consistent copy of the database
+while the server runs, into `backups/` in the data directory:
+
+```bash
+docker compose exec lanleecher lanleecher backup                          # → /var/lib/lanleecher/backups/lanleecher-<date-time>.db
+docker compose cp lanleecher:/var/lib/lanleecher/backups ./backups        # named volume: copy it out
+docker compose cp lanleecher:/var/lib/lanleecher/secret.key ./secret.key  # and the key
+```
+
+With `compose.bind.yaml` the files are already in `./data/backups/`; back up `./data` (including
+`secret.key`). Never copy the live `lanleecher.db` while the container runs – use the backup command.
+`secret.key` must be backed up together with the database: without it the stored SNMP credentials
+cannot be decrypted.
+
+Both examples use **host networking**, so the resolvers can reach clients via NetBIOS and mDNS and
+read the host's neighbor table. `ports:` has no effect then: the service listens on the host's
+port 9040, on all addresses by default. To change that, mount your own configuration read-only
+(`./config.yaml:/etc/lanleecher/config.yaml:ro`, see the commented line in the compose files) and set
+`listen: 127.0.0.1:9040` when a reverse proxy runs on the same host. Set `public_url` to the address
+users open, e.g. `https://leecher.example.org`; with `https://` session cookies are marked
+`Secure`. Keep `trusted_proxies` at the proxy's address so client IPs are taken from its headers.
+Start from the built-in configuration (`packaging/docker-config.yaml`), which keeps `secret_key_file` and
+the database path inside the data volume.
 
 ## From source
 

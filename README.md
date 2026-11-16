@@ -93,7 +93,7 @@ sudo systemctl enable --now lanleecher
 
 Then log in, add your switches under **Switches**, mark the uplinks and start the event. The
 [LAN party guide](docs/lan-party-guide.md) walks through it. Docker: see
-[docs/installation.md](docs/installation.md#docker).
+[docs/installation.md](docs/installation.md#docker-compose) (`compose.yaml`, `compose.bind.yaml`).
 
 ## Documentation
 

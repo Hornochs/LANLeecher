@@ -1,0 +1,32 @@
+# LANLeecher with Docker Compose – data in a local directory (./data).
+# Variant with a named Docker volume: compose.yaml
+#
+# The directory must belong to the image's user (UID 100, GID 101). Before the first start:
+#
+#   mkdir -p data && sudo chown 100:101 data
+#
+#   docker compose -f compose.bind.yaml up -d              # start
+#   docker compose -f compose.bind.yaml exec lanleecher lanleecher user create admin --role admin
+#   docker compose -f compose.bind.yaml logs -f lanleecher # logs
+#   docker compose -f compose.bind.yaml pull && docker compose -f compose.bind.yaml up -d   # update
+#   docker compose -f compose.bind.yaml exec lanleecher lanleecher backup   # → ./data/backups/
+#
+services:
+  lanleecher:
+    # Pin a version tag (e.g. 1.2.3, without "v") for production instead of "latest".
+    image: ghcr.io/lan-dot-party/lanleecher:latest
+    restart: unless-stopped
+    # Host networking: the resolvers need NetBIOS/mDNS to reach clients and the
+    # host's neighbor table. "ports:" is not used; the service listens on the
+    # host's port 9040 (config "listen").
+    network_mode: host
+    environment:
+      # Time zone for displayed times and planned events (default UTC)
+      TZ: Europe/Berlin
+    volumes:
+      - ./data:/var/lib/lanleecher
+      # Optional: own configuration, read-only. Needed to set public_url (e.g.
+      # https://leecher.example.org, which also makes cookies Secure) and, behind a
+      # reverse proxy on the same host, listen: 127.0.0.1:9040. There are no
+      # environment variables for these settings.
+      # - ./config.yaml:/etc/lanleecher/config.yaml:ro
