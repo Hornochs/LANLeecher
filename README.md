@@ -92,8 +92,42 @@ sudo systemctl enable --now lanleecher
 ```
 
 Then log in, add your switches under **Switches**, mark the uplinks and start the event. The
-[LAN party guide](docs/lan-party-guide.md) walks through it. Docker: see
-[docs/installation.md](docs/installation.md#docker-compose) (`compose.yaml`, `compose.bind.yaml`).
+[LAN party guide](docs/lan-party-guide.md) walks through it.
+
+### Docker Compose
+
+Two ready-made examples in the repository root, both with the multi-arch image
+`ghcr.io/lan-dot-party/lanleecher`:
+
+| File | Persistent data | When to use |
+|---|---|---|
+| [`compose.yaml`](compose.yaml) | named Docker volume `lanleecher-data` | simplest; Docker manages the data |
+| [`compose.bind.yaml`](compose.bind.yaml) | local directory `./data` | data visible on the host, easy to back up; the directory must belong to UID `100` / GID `101` (the container user) |
+
+Both examples use host networking: the name resolvers need NetBIOS/mDNS and the host's
+neighbor table. LANLeecher then listens on port 9040 of the host. To set `public_url` or the
+listen address, mount your own `config.yaml` (commented line in the files).
+
+With a named volume:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/lan-dot-party/LANLeecher/main/compose.yaml
+docker compose up -d
+docker compose exec lanleecher lanleecher user create admin --role admin
+```
+
+With a local directory:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/lan-dot-party/LANLeecher/main/compose.bind.yaml
+mkdir -p data && sudo chown 100:101 data
+docker compose -f compose.bind.yaml up -d
+docker compose -f compose.bind.yaml exec lanleecher lanleecher user create admin --role admin
+```
+
+Update with `docker compose pull && docker compose up -d` (add `-f compose.bind.yaml` for the
+second variant). Backup, reverse proxy and details:
+[docs/installation.md](docs/installation.md#docker-compose).
 
 ## Documentation
 
