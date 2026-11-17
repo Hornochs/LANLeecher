@@ -21,7 +21,7 @@ jobs:
     env:
       FILE: ${{ matrix.file }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Prepare data directory
         if: matrix.file == 'compose.bind.yaml'
         run: mkdir -p data && sudo chown 100:101 data

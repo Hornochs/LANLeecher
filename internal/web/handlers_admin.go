@@ -29,12 +29,17 @@ func (s *Server) users(w http.ResponseWriter, r *http.Request) {
 	}{users, userRoles}))
 }
 
+// isASCIIAlnum reports whether r is an ASCII letter or digit.
+func isASCIIAlnum(r rune) bool {
+	return r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
+}
+
 func validUsername(u string) bool {
 	if u == "" || len(u) > 40 {
 		return false
 	}
 	for _, r := range u {
-		if !(r == '.' || r == '_' || r == '-' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
+		if !isASCIIAlnum(r) && r != '.' && r != '_' && r != '-' {
 			return false
 		}
 	}

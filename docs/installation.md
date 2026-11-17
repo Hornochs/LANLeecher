@@ -113,7 +113,7 @@ the database path inside the data volume.
 
 ## From source
 
-Go 1.24 or newer:
+Go 1.26 or newer:
 
 ```bash
 git clone https://github.com/lan-dot-party/LANLeecher.git
