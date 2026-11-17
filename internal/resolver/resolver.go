@@ -13,6 +13,7 @@ import (
 	"context"
 	"log/slog"
 	"net/netip"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -205,7 +206,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) every(ctx context.Context, d time.Duration, fn func()) {
-	fn()
+	s.safely(fn)
 	t := time.NewTicker(d)
 	defer t.Stop()
 	for {
@@ -213,9 +214,19 @@ func (s *Service) every(ctx context.Context, d time.Duration, fn func()) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			fn()
+			s.safely(fn)
 		}
 	}
+}
+
+// safely runs one iteration and logs a panic instead of letting it kill the process.
+func (s *Service) safely(fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("panic in resolver loop", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	fn()
 }
 
 // reprobe queues every IP seen recently that was not probed within the interval.

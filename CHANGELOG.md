@@ -37,6 +37,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   newest 200 (with a note when cut), and the re-probe bookkeeping is pruned.
 - Resolver: name probe answers (NetBIOS, mDNS, LLMNR) are accepted only from the probed IP, and LLMNR
   answers must carry the transaction ID of the query, so third parties cannot name a host.
+- Resolver: a panic in the local-neigh or re-probe loop is logged and the loop keeps running.
 
 ### Changed
 

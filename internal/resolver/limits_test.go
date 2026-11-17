@@ -151,3 +151,21 @@ func TestSuggestMergesCapPerName(t *testing.T) {
 		t.Fatalf("%d suggestions, want %d", len(list), maxSuggestionsPerName)
 	}
 }
+
+func TestEveryRecoversFromPanic(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calls := make(chan struct{}, 8)
+	go s.every(ctx, 5*time.Millisecond, func() {
+		calls <- struct{}{}
+		panic("boom")
+	})
+	for i := 0; i < 3; i++ {
+		select {
+		case <-calls:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("loop stopped after %d iterations", i)
+		}
+	}
+}
