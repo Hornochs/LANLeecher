@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lan-dot-party/lanleecher/internal/accounting"
 	"github.com/lan-dot-party/lanleecher/internal/store"
 )
 
@@ -165,5 +166,54 @@ func TestPurgeIdleMACs(t *testing.T) {
 		if got, _ := db.MACKnown(ctx, mac); got != want {
 			t.Errorf("%s known=%v, want %v", mac, got, want)
 		}
+	}
+}
+
+func TestMACOnOtherClientPort(t *testing.T) {
+	ctx := context.Background()
+	db, sw, ports := floodSetup(t)
+	opt := store.SightingOptions{UplinkThreshold: 32}
+	t0 := time.Date(2026, 11, 17, 18, 0, 0, 0, time.UTC)
+	mac := "02:00:00:00:00:07"
+	record(t, db, sw, []store.Sighting{{MAC: mac, PortID: ports[1], VLAN: 1}}, nil, opt, t0)
+	check := func(port int64, since time.Time) bool {
+		t.Helper()
+		var dup bool
+		if err := db.InTx(ctx, func(tx *store.Tx) error {
+			var err error
+			dup, err = tx.MACOnOtherClientPort(ctx, mac, port, since)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return dup
+	}
+	if check(ports[1], t0.Add(-time.Minute)) {
+		t.Fatal("own port counted as another port")
+	}
+	// Cloned onto port 2: the switch sees the MAC on both ports in one read.
+	both := []store.Sighting{{MAC: mac, PortID: ports[1], VLAN: 1}, {MAC: mac, PortID: ports[2], VLAN: 1}}
+	record(t, db, sw, both, nil, opt, t0.Add(time.Minute))
+	if !check(ports[2], t0) || !check(ports[1], t0) {
+		t.Fatal("MAC on two client ports not detected")
+	}
+	// A read older than the window does not count (switch no longer polled).
+	if check(ports[2], t0.Add(5*time.Minute)) {
+		t.Fatal("old read still counts after the window")
+	}
+	// The device moves to port 2: the next read no longer has it on port 1,
+	// so it is no duplicate any more, right away.
+	record(t, db, sw, []store.Sighting{{MAC: mac, PortID: ports[2], VLAN: 1}}, nil, opt, t0.Add(2*time.Minute))
+	if check(ports[2], t0) {
+		t.Fatal("moved device still counts as on two ports after the next read")
+	}
+	record(t, db, sw, both, nil, opt, t0.Add(3*time.Minute))
+	// Behind an uplink every MAC shows up: that is no duplicate.
+	uplink := accounting.RoleUplink
+	if err := db.UpdatePorts(ctx, []int64{ports[1]}, store.PortSettings{Role: &uplink}); err != nil {
+		t.Fatal(err)
+	}
+	if check(ports[2], t0.Add(-time.Minute)) {
+		t.Fatal("uplink location counted as a client port")
 	}
 }

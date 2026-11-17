@@ -91,6 +91,9 @@ func (tx *Tx) RecordSightings(ctx context.Context, switchID int64, sightings []S
 		switchID); err != nil {
 		return nil, err
 	}
+	if _, err := tx.tx.ExecContext(ctx, `UPDATE switches SET fdb_read_at = ? WHERE id = ?`, now, switchID); err != nil {
+		return nil, err
+	}
 	for portID, macs := range counts {
 		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET mac_count = ? WHERE id = ?`, len(macs), portID); err != nil {
 			return nil, err
@@ -472,4 +475,20 @@ func (db *DB) PurgeIdleMACs(ctx context.Context, cutoff time.Time) (int64, error
 		return err
 	})
 	return n, err
+}
+
+// MACOnOtherClientPort reports whether a MAC is currently also on another
+// port that is not an uplink or WAN port (on any switch): the last
+// forwarding-table read of that port's switch still saw it there, and that
+// read is not older than since. A device that moved to another port stops
+// counting as soon as its old switch is read again; a cloned MAC keeps
+// counting while both are connected. Such traffic is credited to nobody.
+func (tx *Tx) MACOnOtherClientPort(ctx context.Context, mac string, portID int64, since time.Time) (bool, error) {
+	var n int
+	err := tx.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM mac_locations l
+		JOIN ports p ON p.id = l.port_id JOIN switches s ON s.id = p.switch_id
+		WHERE l.mac = ? AND l.port_id <> ? AND p.role NOT IN ('uplink', 'wan')
+		AND s.fdb_read_at > 0 AND l.last_seen >= s.fdb_read_at AND l.last_seen >= ?`,
+		mac, portID, unix(since)).Scan(&n)
+	return n > 0, err
 }

@@ -231,7 +231,20 @@ func (p *poller) book(ctx context.Context, tx *store.Tx, eventID int64, port *st
 	target := accounting.Attribute(port.Role, macs)
 	switch target.Kind {
 	case accounting.TargetMAC:
-		return tx.AddSubjectTraffic(ctx, eventID, store.SubjectMAC, target.MAC.String(), port.ID, down, up, at)
+		// The same MAC currently on another client port (the latest read of
+		// that switch still has it there): a cloned MAC that would take over
+		// someone else's traffic. Nobody gets it until the tables agree; a
+		// device that moved counts again after its old switch's next read.
+		mac := target.MAC.String()
+		dup, err := tx.MACOnOtherClientPort(ctx, mac, port.ID, at.Add(-2*p.fdbInterval))
+		if err != nil {
+			return err
+		}
+		if dup {
+			p.m.warnDuplicateMAC(mac, port.ShortName(), at)
+			return tx.AddSubjectTraffic(ctx, eventID, store.SubjectUnassigned, strconv.FormatInt(port.ID, 10), port.ID, down, up, at)
+		}
+		return tx.AddSubjectTraffic(ctx, eventID, store.SubjectMAC, mac, port.ID, down, up, at)
 	case accounting.TargetPortGroup:
 		gid, err := tx.EnsurePortGroup(ctx, eventID, port.ID)
 		if err != nil {

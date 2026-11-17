@@ -38,6 +38,32 @@ type Manager struct {
 	mu      sync.Mutex
 	ctx     context.Context
 	pollers map[int64]*poller
+
+	// dupWarned limits the warning about a MAC on two client ports to one
+	// per MAC and hour.
+	dupMu     sync.Mutex
+	dupWarned map[string]time.Time
+}
+
+// warnDuplicateMAC logs that a MAC is on two client ports, at most once per
+// MAC and hour.
+func (m *Manager) warnDuplicateMAC(mac, port string, at time.Time) {
+	m.dupMu.Lock()
+	defer m.dupMu.Unlock()
+	if m.dupWarned == nil {
+		m.dupWarned = map[string]time.Time{}
+	}
+	if last, ok := m.dupWarned[mac]; ok && at.Sub(last) < time.Hour {
+		return
+	}
+	for k, t := range m.dupWarned {
+		if at.Sub(t) >= time.Hour {
+			delete(m.dupWarned, k)
+		}
+	}
+	m.dupWarned[mac] = at
+	m.log.Warn("MAC seen on two client ports (moved device or cloned MAC); its traffic is not credited until the tables agree",
+		"mac", mac, "port", port)
 }
 
 // New creates a manager. Call Start to begin polling.

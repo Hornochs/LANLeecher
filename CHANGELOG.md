@@ -11,6 +11,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **MAC flooding:** a port with more than `polling.max_port_macs` (512) MACs in one forwarding-table
   read creates no new devices (known MACs are still updated; the log warns), and MACs that never had
   traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted hourly. Migration 00010.
+- **Cloned MACs:** while the latest forwarding-table reads show a MAC on two client ports at once,
+  the traffic of those ports is booked as unassigned instead of crediting it to the MAC, and the
+  log warns. A device that moves to another port is credited again after the old switch's next
+  read. Port security on the switches remains the real protection (docs/concepts.md).
 
 - Build with Go 1.26.11 (was 1.24.7) and current `golang.org/x/*` modules. `govulncheck` reported
   about 47 reachable standard-library vulnerabilities (`net/http`, `crypto/x509`) for the old

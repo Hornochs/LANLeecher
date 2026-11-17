@@ -209,6 +209,17 @@ had any traffic and were not seen for `polling.idle_mac_retention` (24 h) are de
 together with their location and name history; devices an operator named, annotated or hid are
 kept.
 
+### Cloned MACs
+
+Traffic of a port with exactly one MAC is credited to that MAC. If the latest forwarding-table read
+of another switch (or of the same one) still sees that MAC on another client port – typically an
+attendee who cloned someone's MAC to push traffic onto them – the traffic of both ports goes to
+*unassigned*, and the log warns once per MAC and hour. An attendee who simply moves to another port
+is credited again as soon as the old switch has been read once more (at most one
+`polling.fdb_interval`, because then the old port no longer has the MAC). Several MACs on one client
+port always form a port group. Neither can be ruled out completely in software: **port security
+with one sticky MAC per client port** on the switches is the reliable protection.
+
 
 ======== docs/api.md ========
 
