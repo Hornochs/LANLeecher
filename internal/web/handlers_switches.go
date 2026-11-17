@@ -83,7 +83,7 @@ func (s *Server) switchNew(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) switchEdit(w http.ResponseWriter, r *http.Request) {
-	sw, creds, ok := s.loadSwitch(w, r)
+	sw, creds, ok := s.loadEditableSwitch(w, r)
 	if !ok {
 		return
 	}
@@ -101,12 +101,30 @@ func (s *Server) loadSwitch(w http.ResponseWriter, r *http.Request) (*store.Swit
 		s.fail(w, r, err)
 		return nil, snmp.Credentials{}, false
 	}
+	if sw.Archived {
+		// Imported switches have no credentials.
+		return sw, snmp.Credentials{}, true
+	}
 	plain, err := s.Key.Decrypt(sw.CredentialsEnc)
 	if err != nil {
 		s.fail(w, r, err)
 		return nil, snmp.Credentials{}, false
 	}
 	creds, _ := snmp.UnmarshalCredentials(plain)
+	return sw, creds, true
+}
+
+// loadEditableSwitch is loadSwitch for edit and update: archived switches
+// are redirected to the list.
+func (s *Server) loadEditableSwitch(w http.ResponseWriter, r *http.Request) (*store.Switch, snmp.Credentials, bool) {
+	sw, creds, ok := s.loadSwitch(w, r)
+	if !ok {
+		return nil, creds, false
+	}
+	if sw.Archived {
+		redirect(w, r, "/switches?err=switch_archived")
+		return nil, creds, false
+	}
 	return sw, creds, true
 }
 
@@ -239,7 +257,7 @@ func (s *Server) switchCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) switchUpdate(w http.ResponseWriter, r *http.Request) {
-	sw, creds, ok := s.loadSwitch(w, r)
+	sw, creds, ok := s.loadEditableSwitch(w, r)
 	if !ok {
 		return
 	}
@@ -268,6 +286,10 @@ func (s *Server) switchTest(w http.ResponseWriter, r *http.Request) {
 	sw := &store.Switch{}
 	if id, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64); id > 0 {
 		if existing, err := s.DB.GetSwitch(r.Context(), id); err == nil {
+			if existing.Archived {
+				redirect(w, r, "/switches?err=switch_archived")
+				return
+			}
 			if plain, err := s.Key.Decrypt(existing.CredentialsEnc); err == nil {
 				old, _ = snmp.UnmarshalCredentials(plain)
 			}

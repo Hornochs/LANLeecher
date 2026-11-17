@@ -3,14 +3,15 @@
 <div class="page-head">
   <div>
     <p class="eyebrow">{{$.T "switches.switch"}}</p>
-    <h1><span class="dot {{if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span> {{.Switch.Name}}</h1>
+    <h1><span class="dot {{if .Switch.Archived}}dot-off{{else if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span> {{.Switch.Name}}</h1>
     <p class="muted">{{.Switch.Host}} · {{.Switch.SysName}} · {{.Switch.SysDescr}}{{if .Switch.LastPollAt}} · {{$.T "switches.last_poll"}} {{ago (deref .Switch.LastPollAt)}}{{end}}</p>
-    {{if and (not .Switch.LastPollOK) .Switch.LastError}}<p class="error">{{.Switch.LastError}}</p>{{end}}
+    {{if .Switch.Archived}}<p><span class="badge badge-muted">{{$.T "switches.archived"}}</span> <span class="muted small">{{$.T "switches.archived_hint"}}</span></p>{{end}}
+    {{if and (not .Switch.Archived) (not .Switch.LastPollOK) .Switch.LastError}}<p class="error">{{.Switch.LastError}}</p>{{end}}
   </div>
   <div class="actions">
     {{if .ShowAll}}<a class="button" href="/switches/{{.Switch.ID}}">{{$.T "ports.physical_only"}}</a>
     {{else}}<a class="button" href="/switches/{{.Switch.ID}}?all=1">{{$.T "ports.show_virtual"}} ({{.VirtualCount}})</a>{{end}}
-    {{if $.Can "admin"}}<a class="button" href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}
+    {{if and ($.Can "admin") (not .Switch.Archived)}}<a class="button" href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}
   </div>
 </div>
 {{if .Suspects}}<p class="alert alert-warn">{{$.T "ports.suspect_banner" .Suspects}}</p>{{end}}

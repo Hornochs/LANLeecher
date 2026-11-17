@@ -12,15 +12,18 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/auth"
 	"github.com/lan-dot-party/lanleecher/internal/store"
+	"github.com/lan-dot-party/lanleecher/internal/transfer"
 	"github.com/lan-dot-party/lanleecher/pkg/version"
 )
 
@@ -40,7 +43,7 @@ type Server struct {
 var pageFiles = []string{
 	"login", "dashboard", "rankings", "search", "device", "merges", "events", "event", "compare",
 	"switches", "switch_form", "ports", "users", "tokens", "audit", "settings", "account", "board", "error",
-	"dhcp_list", "dhcp_form", "dhcp_source",
+	"dhcp_list", "dhcp_form", "dhcp_source", "transfer",
 }
 
 // New parses all templates.
@@ -118,6 +121,11 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/admin/tokens", s.tokens)
 			r.Post("/admin/tokens", s.tokenCreate)
 			r.Post("/admin/tokens/{id}/revoke", s.tokenRevoke)
+			r.Get("/admin/transfer", s.transferPage)
+			r.Get("/admin/transfer/export", s.transferExport)
+			r.Post("/admin/transfer/import", s.transferImport)
+			r.Post("/admin/transfer/import/confirm", s.transferConfirm)
+			r.Post("/admin/transfer/import/cancel", s.transferCancel)
 			r.Get("/admin/audit", s.audit)
 			r.Get("/admin/settings", s.settings)
 			r.Get("/admin/dhcp", s.dhcpList)
@@ -177,6 +185,29 @@ func (s *Server) requireRole(role string) func(http.Handler) http.Handler {
 func (s *Server) csrf(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
+			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt == "multipart/form-data" {
+				// Parse here with a bound: PostFormValue would buffer up to 32 MiB in
+				// memory and the body would be unbounded. File parts above 1 MiB go to
+				// temp files, which are removed when the request ends.
+				limit := int64(1 << 20)
+				if r.URL.Path == "/admin/transfer/import" {
+					limit = transfer.MaxCompressed + 1<<20
+					// The server's ReadTimeout (30 s) is too short for a large
+					// export file on a slow link.
+					_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(10 * time.Minute))
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
+				if err := r.ParseMultipartForm(1 << 20); err != nil {
+					var tooBig *http.MaxBytesError
+					if errors.As(err, &tooBig) {
+						s.errorPage(w, r, http.StatusRequestEntityTooLarge, "error.transfer_too_large")
+						return
+					}
+					s.errorPage(w, r, http.StatusBadRequest, "error.bad_request")
+					return
+				}
+				defer r.MultipartForm.RemoveAll() //nolint:errcheck // best-effort temp file cleanup
+			}
 			sess := app.Session(r.Context())
 			token := r.Header.Get("X-CSRF-Token")
 			if token == "" {

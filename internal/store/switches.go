@@ -22,23 +22,26 @@ type Switch struct {
 	FDBAdapter   string
 	ARPSource    bool
 	Enabled      bool
-	SysDescr     string
-	SysName      string
-	LastPollAt   *time.Time
-	LastPollOK   bool
-	LastError    string
-	CreatedAt    time.Time
+	// Archived switches were imported from another instance: no
+	// credentials, never polled, not editable.
+	Archived   bool
+	SysDescr   string
+	SysName    string
+	LastPollAt *time.Time
+	LastPollOK bool
+	LastError  string
+	CreatedAt  time.Time
 }
 
 const switchCols = `id, name, host, port, snmp_version, credentials_enc, poll_interval, fdb_adapter,
-	arp_source, enabled, sys_descr, sys_name, last_poll_at, last_poll_ok, last_error, created_at`
+	arp_source, enabled, archived, sys_descr, sys_name, last_poll_at, last_poll_ok, last_error, created_at`
 
 func scanSwitch(row interface{ Scan(...any) error }) (*Switch, error) {
 	var s Switch
 	var lastPoll sql.NullInt64
 	var created int64
 	err := row.Scan(&s.ID, &s.Name, &s.Host, &s.Port, &s.SNMPVersion, &s.CredentialsEnc, &s.PollInterval,
-		&s.FDBAdapter, &s.ARPSource, &s.Enabled, &s.SysDescr, &s.SysName, &lastPoll, &s.LastPollOK,
+		&s.FDBAdapter, &s.ARPSource, &s.Enabled, &s.Archived, &s.SysDescr, &s.SysName, &lastPoll, &s.LastPollOK,
 		&s.LastError, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

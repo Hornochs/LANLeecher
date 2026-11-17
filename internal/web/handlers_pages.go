@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,8 @@ func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error)
 	if d.Switches, err = s.DB.ListSwitches(ctx); err != nil {
 		return nil, err
 	}
+	// Imported switches are never polled and must not look like failures.
+	d.Switches = slices.DeleteFunc(d.Switches, func(sw *store.Switch) bool { return sw.Archived })
 	if p.Can(store.RoleAdmin) {
 		d.DHCPProblems = s.dhcpProblems(r)
 	}
