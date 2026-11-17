@@ -13,6 +13,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/accounting"
 	"github.com/lan-dot-party/lanleecher/internal/collector"
 	"github.com/lan-dot-party/lanleecher/internal/config"
+	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
 	"github.com/lan-dot-party/lanleecher/internal/secret"
 	"github.com/lan-dot-party/lanleecher/internal/snmp"
@@ -162,6 +163,18 @@ func (m *Manager) PortRates(switchID int64) map[int64]Rate {
 		return nil
 	}
 	return p.rates()
+}
+
+// FDB returns a copy of the last forwarding table read from a switch (ifIndex
+// to learned MACs, uplink ports included), or nil if there is none.
+func (m *Manager) FDB(switchID int64) map[int][]macaddr.MAC {
+	m.mu.Lock()
+	p := m.pollers[switchID]
+	m.mu.Unlock()
+	if p == nil {
+		return nil
+	}
+	return p.fdbTable()
 }
 
 // LivePortRates returns the current rates of all ports of all switches by

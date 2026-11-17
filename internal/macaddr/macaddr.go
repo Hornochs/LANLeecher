@@ -112,3 +112,22 @@ func LooksLikePartial(s string) (string, bool) {
 	}
 	return clean, true
 }
+
+// NormalizeLoose is like Normalize but also accepts octets written with a
+// single digit ("0:1:2:3:4:5"), as some agents print them. It returns "" if
+// s is not a MAC address.
+func NormalizeLoose(s string) string {
+	if m := Normalize(s); m != "" {
+		return m
+	}
+	parts := strings.FieldsFunc(strings.TrimSpace(s), func(r rune) bool { return r == ':' || r == '-' })
+	if len(parts) != 6 {
+		return ""
+	}
+	for i, p := range parts {
+		if len(p) == 1 {
+			parts[i] = "0" + p
+		}
+	}
+	return Normalize(strings.Join(parts, ":"))
+}

@@ -198,10 +198,14 @@ The model separates master data (switches, ports, devices), running state (last 
 
 | Table | Important fields | Purpose |
 | --- | --- | --- |
-| `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled, archived (imported: no credentials, never polled) | Configured switches |
-| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`, `wan`), `wan_link_id`, display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
+| `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled, archived (imported: no credentials, never polled), chassis\_id, base\_mac (network map) | Configured switches |
+| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, lag\_if\_index (LAG this port is a member of), last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`, `wan`), `wan_link_id`, display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
 | `port_counter_state` | port\_id, in\_raw, out\_raw, counter\_bits, sys\_uptime, discontinuity, polled\_at | Last raw value for delta computation |
 | `wan_links` | id, name (unique), sort, down\_mbps, up\_mbps, notes, created\_at | Named internet connections; ports with role `wan` point to one via `ports.wan_link_id` |
+| `lldp_neighbors` | switch\_id, if\_index (PK), chassis\_id, sys\_name, port\_id, port\_desc, bridge, seen\_at | LLDP neighbor per port from the last FDB poll, for the network map |
+| `maps` | id, name (unique), sort, refresh, bg (image), bg\_type, bg\_width, bg\_height, bg\_hash, created\_at, updated\_at | Network maps with their background image |
+| `map_nodes`, `map_wan_nodes` | map\_id, switch\_id or wan\_link\_id, x, y (fractions 0–1) | Switches and internet connections placed on a map |
+| `map_links` | id, map\_id, kind (`manual`, `hidden`), a\_switch, a\_if, b\_switch, b\_if | Links drawn by hand and automatic links an admin hid |
 | `port_traffic_buckets` | event\_id, port\_id, bucket\_start, bytes\_down, bytes\_up | 5-minute buckets of every port (client view); basis of the WAN series |
 | `port_traffic_totals` | event\_id, port\_id, bytes\_down, bytes\_up, updated\_at | Traffic of every port per event, uplinks included |
 | `events` | id, name, slug, started\_at, ended\_at, notes | LAN events; at most one active |
@@ -274,6 +278,7 @@ The web UI is entirely behind a login; roles and usage follow LANPilot so that o
 - **Search** – one search field for MAC (any notation), IP or hostname, also partial matches.
 - **Device/MAC detail** – download and upload totals per event, timeline of both directions, IP and hostname history, ports, merge suggestions.
 - **Events** – create, start, stop, plan with a date range, search, compare, export.
+- **Map** – switches and internet connections on a background image, links from LLDP/FDB/by hand with live traffic ([docs/map.md](docs/map.md)); everybody views, admins edit.
 - **Switches & ports** – add a switch, test the connection, set port roles, uplink hints.
 - **Admin** – users, API tokens, audit log, settings overview.
 

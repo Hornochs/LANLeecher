@@ -306,10 +306,13 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		byIf[port.IfIndex] = port
 		names[port.IfIndex] = []string{port.IfName, port.IfDescr}
 	}
-	lldp, err := fdb.LLDPNeighbors(g, names)
+	lldpAll, err := fdb.LLDPAll(g, names)
 	if err != nil {
 		p.log.Debug("lldp not available", "err", err)
+		lldpAll = nil
 	}
+	lldp := fdb.NeighborNames(lldpAll)
+	topo := p.readTopology(g, ports, lldpAll)
 
 	macs := map[int][]macaddr.MAC{}
 	var sightings []store.Sighting
@@ -340,7 +343,11 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		}
 	}
 	err = p.m.db.InTx(ctx, func(tx *store.Tx) error {
-		return tx.RecordSightings(ctx, p.sw.ID, sightings, neighbors, p.m.cfg.Polling.UplinkMACThreshold, store.Now())
+		now := store.Now()
+		if err := tx.RecordSightings(ctx, p.sw.ID, sightings, neighbors, p.m.cfg.Polling.UplinkMACThreshold, now); err != nil {
+			return err
+		}
+		return tx.RecordTopology(ctx, p.sw.ID, topo.chassisID, topo.baseMAC, topo.neighbors, topo.lag, now)
 	})
 	if err != nil {
 		return err
@@ -369,6 +376,64 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// topology is what a poll learned for the network map. A nil map means the
+// data could not be read and the stored data stays.
+type topology struct {
+	chassisID, baseMAC string
+	neighbors          map[int]store.LLDPNeighbor
+	lag                map[int]int
+}
+
+// readTopology collects chassis IDs, LLDP neighbor details and LAG
+// memberships over SNMP. It is best effort: failures are logged at debug
+// level and never fail the poll.
+func (p *poller) readTopology(g *gosnmp.GoSNMP, ports []*store.Port, lldpAll map[int][]fdb.Neighbor) topology {
+	var t topology
+	t.chassisID, t.baseMAC = fdb.LocalChassis(g)
+	if lldpAll != nil {
+		t.neighbors = map[int]store.LLDPNeighbor{}
+		known := map[int]bool{}
+		for _, port := range ports {
+			known[port.IfIndex] = true
+		}
+		now := store.Now()
+		for ifIndex, n := range fdb.PreferredNeighbors(lldpAll) {
+			if known[ifIndex] {
+				t.neighbors[ifIndex] = store.LLDPNeighbor{IfIndex: ifIndex, ChassisID: n.ChassisID, SysName: n.SysName,
+					PortID: n.PortID, PortDesc: n.PortDesc, Bridge: n.Bridge, SeenAt: now}
+			}
+		}
+	}
+	lags := fdb.IfNames{}
+	for _, port := range ports {
+		if (&collector.Interface{Type: port.IfType, Name: port.IfName, Descr: port.IfDescr}).IsLAG() {
+			lags[port.IfIndex] = []string{port.IfName, port.IfDescr}
+		}
+	}
+	members, err := fdb.LAGMembers(g, lags)
+	if err != nil {
+		p.log.Debug("lag membership not available", "err", err)
+	} else {
+		t.lag = members
+	}
+	return t
+}
+
+// fdbTable returns a copy of the switch's last forwarding table (ifIndex to MACs),
+// or nil if none was read yet.
+func (p *poller) fdbTable() map[int][]macaddr.MAC {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.macs == nil {
+		return nil
+	}
+	out := make(map[int][]macaddr.MAC, len(p.macs))
+	for k, v := range p.macs {
+		out[k] = append([]macaddr.MAC(nil), v...)
+	}
+	return out
 }
 
 func (p *poller) rates() map[int64]Rate {

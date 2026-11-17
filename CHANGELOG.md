@@ -24,6 +24,14 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Network map:** a new page "Map" shows switches and internet connections on a background image
+  (PNG, JPEG or GIF), with the links between them and their live traffic. Links come from LLDP
+  (chassis ID and system name), from the MAC tables as a fallback, from link aggregation
+  memberships, and can be drawn by hand or hidden; internet connections (WAN links) are placed as
+  nodes linked to their WAN ports. Everything is read over SNMP only (new: LLDP chassis ID and
+  neighbor details, bridge base MAC, `dot3adAggPortAttachedAggID`, TP-Link `tpVlanPortLag`).
+  Everybody logged in views, admins edit. Migration 00008. The code comes from ERS-Proxy. See
+  [docs/map.md](docs/map.md).
 - **Internet connections (WAN links):** named WAN links (for example fibre and an LTE backup) with
   optional booked bandwidth, managed under Admin → Internet connections. Ports get the new role
   "Internet access (WAN)" plus a link on the port page. Their traffic is counted on the port only,

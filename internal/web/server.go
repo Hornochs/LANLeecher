@@ -43,7 +43,7 @@ type Server struct {
 var pageFiles = []string{
 	"login", "dashboard", "rankings", "search", "device", "merges", "events", "event", "compare",
 	"switches", "switch_form", "ports", "users", "tokens", "audit", "settings", "account", "board", "error",
-	"dhcp_list", "dhcp_form", "dhcp_source", "transfer", "wan",
+	"dhcp_list", "dhcp_form", "dhcp_source", "transfer", "wan", "maps",
 }
 
 // New parses all templates.
@@ -87,6 +87,10 @@ func (s *Server) Routes() http.Handler {
 		r.Get("/events/{slug}/export.{format}", s.exportEvent)
 		r.Get("/switches", s.switches)
 		r.Get("/switches/{id}", s.ports)
+		r.Get("/maps", s.mapsPage)
+		r.Get("/maps/{id}", s.mapPage)
+		r.Get("/maps/{id}/state.json", s.mapState)
+		r.Get("/maps/{id}/background", s.mapBackground)
 		r.Get("/account", s.account)
 		r.Post("/account/password", s.accountPassword)
 		r.Post("/account/language", s.accountLanguage)
@@ -113,6 +117,13 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/switches/{id}/edit", s.switchEdit)
 			r.Post("/switches/{id}", s.switchUpdate)
 			r.Post("/switches/{id}/delete", s.switchDelete)
+			r.Post("/maps", s.mapCreate)
+			r.Post("/maps/{id}", s.mapUpdate)
+			r.Post("/maps/{id}/delete", s.mapDelete)
+			r.Post("/maps/{id}/background", s.mapBackgroundUpload)
+			r.Post("/maps/{id}/nodes", s.mapNodes)
+			r.Post("/maps/{id}/links", s.mapLinkAdd)
+			r.Post("/maps/{id}/links/{lid}/delete", s.mapLinkDelete)
 			r.Get("/admin/users", s.users)
 			r.Post("/admin/users", s.userCreate)
 			r.Post("/admin/users/{id}", s.userUpdate)
@@ -185,15 +196,29 @@ func (s *Server) requireRole(role string) func(http.Handler) http.Handler {
 	}
 }
 
+// maxRequestBody bounds the body of every state-changing request that is not
+// multipart (map.js posts small JSON; nothing else is large).
+const maxRequestBody = 16 << 20
+
 // csrf checks the session's token on every state-changing request.
 func (s *Server) csrf(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
+			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
+				if r.ContentLength > maxRequestBody {
+					s.errorPage(w, r, http.StatusRequestEntityTooLarge, "error.too_large")
+					return
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+			}
 			if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt == "multipart/form-data" {
 				// Parse here with a bound: PostFormValue would buffer up to 32 MiB in
 				// memory and the body would be unbounded. File parts above 1 MiB go to
 				// temp files, which are removed when the request ends.
 				limit := int64(1 << 20)
+				if strings.HasSuffix(r.URL.Path, "/background") && strings.HasPrefix(r.URL.Path, "/maps/") {
+					limit = maxMapUploadBody
+				}
 				if r.URL.Path == "/admin/transfer/import" {
 					limit = transfer.MaxCompressed + 1<<20
 					// The server's ReadTimeout (30 s) is too short for a large
@@ -204,7 +229,11 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 				if err := r.ParseMultipartForm(1 << 20); err != nil {
 					var tooBig *http.MaxBytesError
 					if errors.As(err, &tooBig) {
-						s.errorPage(w, r, http.StatusRequestEntityTooLarge, "error.transfer_too_large")
+						key := "error.transfer_too_large"
+						if limit == maxMapUploadBody {
+							key = "maps.err.image_size"
+						}
+						s.errorPage(w, r, http.StatusRequestEntityTooLarge, key)
 						return
 					}
 					s.errorPage(w, r, http.StatusBadRequest, "error.bad_request")
@@ -239,6 +268,8 @@ type Page struct {
 	Board   bool
 	// Theme is the color theme: auto, light or dark.
 	Theme string
+	// Wide lets the page use the full window width (the network map).
+	Wide bool
 	// Path is the current request URI, to return to after a theme change.
 	Path string
 	Data any

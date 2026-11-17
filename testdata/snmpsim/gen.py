@@ -54,6 +54,26 @@ for mac, port in FDB.items():
     add(f"1.3.6.1.2.1.17.7.1.2.2.1.2.1.{octets}", "2", port)
     add(f"1.3.6.1.2.1.17.7.1.2.2.1.3.1.{octets}", "2", 3)
 
+# LLDP: local chassis ID (MAC), local port IDs (= ifName) and one neighbour on
+# the port-channel: a bridge with a MAC chassis ID, reachable via "gi1/0/48".
+CHASSIS = "02:00:00:00:00:fe"
+add("1.0.8802.1.1.2.1.3.1.0", "2", 4)
+add("1.0.8802.1.1.2.1.3.2.0", "4x", CHASSIS.replace(":", ""))
+add("1.3.6.1.2.1.17.1.1.0", "4x", CHASSIS.replace(":", ""))
+for idx, (name, *_rest) in PORTS.items():
+    add(f"1.0.8802.1.1.2.1.3.7.1.2.{idx}", "2", 5)  # interfaceName
+    add(f"1.0.8802.1.1.2.1.3.7.1.3.{idx}", "4", name)
+REM = "0.4.1"  # lldpRemTimeMark.lldpRemLocalPortNum.lldpRemIndex: on port 4
+add(f"1.0.8802.1.1.2.1.4.1.1.4.{REM}", "2", 4)
+add(f"1.0.8802.1.1.2.1.4.1.1.5.{REM}", "4x", "020000000001")
+add(f"1.0.8802.1.1.2.1.4.1.1.7.{REM}", "4", "gi1/0/48")
+add(f"1.0.8802.1.1.2.1.4.1.1.8.{REM}", "4", "uplink to testswitch")
+add(f"1.0.8802.1.1.2.1.4.1.1.9.{REM}", "4", "coreswitch")
+add(f"1.0.8802.1.1.2.1.4.1.1.12.{REM}", "4x", "20")  # bridge capability
+
+# IEEE8023-LAG-MIB: port 3 is a member of port-channel 1 (ifIndex 4).
+add("1.2.840.10006.300.43.1.2.1.1.13.3", "2", 4)
+
 # ARP table (ipNetToMediaPhysAddress) for the snmp-arp resolver.
 for i, mac in enumerate(["02:00:00:00:00:01", "02:00:00:00:00:21"], start=11):
     add(f"1.3.6.1.2.1.4.22.1.2.100.10.0.0.{i}", "4x", mac.replace(":", ""))

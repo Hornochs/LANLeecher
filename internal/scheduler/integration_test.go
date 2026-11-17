@@ -138,6 +138,29 @@ func TestPollAndBookAgainstSimulator(t *testing.T) {
 		t.Errorf("port-channel mac_count = %d, want 12", byName["port-channel 1"].MACCount)
 	}
 
+	// Topology: neighbor with chassis ID on the port-channel, LAG membership, own chassis.
+	nbs, err := db.ListLLDPNeighbors(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nbs[sw.ID]; len(got) != 1 || got[0].IfIndex != 4 || got[0].SysName != "coreswitch" ||
+		got[0].ChassisID != "02:00:00:00:00:01" || got[0].PortID != "gi1/0/48" || !got[0].Bridge {
+		t.Errorf("stored LLDP neighbors = %+v", got)
+	}
+	if byName["gigabitEthernet 1/0/3"].LAGIfIndex != 4 || byName["gigabitEthernet 1/0/1"].LAGIfIndex != 0 {
+		t.Errorf("LAG membership: port 3 -> %d, port 1 -> %d, want 4 and 0",
+			byName["gigabitEthernet 1/0/3"].LAGIfIndex, byName["gigabitEthernet 1/0/1"].LAGIfIndex)
+	}
+	if stored, err := db.GetSwitch(ctx, sw.ID); err != nil || stored.ChassisID != "02:00:00:00:00:fe" || stored.BaseMAC != "02:00:00:00:00:fe" {
+		t.Errorf("switch chassis/base MAC = %+v, %v", stored, err)
+	}
+	if table := m.FDB(sw.ID); table != nil {
+		t.Errorf("FDB of an unregistered poller = %v, want nil", table)
+	}
+	if len(p.fdbTable()[4]) != 12 {
+		t.Errorf("FDB table of port 4 = %d MACs, want 12", len(p.fdbTable()[4]))
+	}
+
 	rows, err := db.Rankings(ctx, store.RankingQuery{EventID: ev.ID, Order: "down", Limit: 10})
 	if err != nil {
 		t.Fatal(err)

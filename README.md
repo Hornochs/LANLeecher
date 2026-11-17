@@ -25,6 +25,8 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
   other tools.
 - **Switch and port management** with a connection test, port roles (client, multi-client, server,
   uplink), labels, and hints for ports that look like uplinks (LLDP neighbor, many MACs).
+- **Network map** with your switches and internet connections on a floor plan, links from LLDP and
+  MAC tables, and live traffic colours – see [docs/map.md](docs/map.md).
 - **Hostnames from Kea DHCP** (Kea 2.x and 3.x, read-only, certificate pinning) and from the
   network itself (NetBIOS, mDNS, LLMNR, DNS), with history per device; vendor names from the IEEE
   registry for MAC addresses.

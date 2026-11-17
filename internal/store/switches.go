@@ -24,9 +24,13 @@ type Switch struct {
 	Enabled      bool
 	// Archived switches were imported from another instance: no
 	// credentials, never polled, not editable.
-	Archived   bool
-	SysDescr   string
-	SysName    string
+	Archived bool
+	SysDescr string
+	SysName  string
+	// ChassisID and BaseMAC identify the switch in LLDP and in other
+	// switches' forwarding tables (network map).
+	ChassisID  string
+	BaseMAC    string
 	LastPollAt *time.Time
 	LastPollOK bool
 	LastError  string
@@ -34,14 +38,14 @@ type Switch struct {
 }
 
 const switchCols = `id, name, host, port, snmp_version, credentials_enc, poll_interval, fdb_adapter,
-	arp_source, enabled, archived, sys_descr, sys_name, last_poll_at, last_poll_ok, last_error, created_at`
+	arp_source, enabled, archived, sys_descr, sys_name, chassis_id, base_mac, last_poll_at, last_poll_ok, last_error, created_at`
 
 func scanSwitch(row interface{ Scan(...any) error }) (*Switch, error) {
 	var s Switch
 	var lastPoll sql.NullInt64
 	var created int64
 	err := row.Scan(&s.ID, &s.Name, &s.Host, &s.Port, &s.SNMPVersion, &s.CredentialsEnc, &s.PollInterval,
-		&s.FDBAdapter, &s.ARPSource, &s.Enabled, &s.Archived, &s.SysDescr, &s.SysName, &lastPoll, &s.LastPollOK,
+		&s.FDBAdapter, &s.ARPSource, &s.Enabled, &s.Archived, &s.SysDescr, &s.SysName, &s.ChassisID, &s.BaseMAC, &lastPoll, &s.LastPollOK,
 		&s.LastError, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -146,7 +150,10 @@ type Port struct {
 	UplinkDismissed bool
 	// WANLinkID is the internet uplink of a port with the role "wan" (0 = none).
 	WANLinkID int64
-	LastSeen  time.Time
+	// LAGIfIndex is the ifIndex of the link aggregation this port is a
+	// member of (0 = none).
+	LAGIfIndex int
+	LastSeen   time.Time
 }
 
 // Name returns the label, or switch and interface name.
@@ -170,12 +177,12 @@ func (p *Port) ShortName() string {
 
 const portCols = `p.id, p.switch_id, s.name, p.if_index, p.if_name, p.if_alias, p.if_descr, p.if_type, p.physical,
 	p.lldp_neighbor, p.oper_up, p.speed_mbps, p.hc_supported, p.role, p.label, p.hidden_in_rankings, p.mac_count,
-	p.uplink_suspect, p.uplink_dismissed, COALESCE(p.wan_link_id, 0), p.last_seen`
+	p.uplink_suspect, p.uplink_dismissed, COALESCE(p.wan_link_id, 0), p.lag_if_index, p.last_seen`
 
 func portDest(p *Port, role *string, seen *int64) []any {
 	return []any{&p.ID, &p.SwitchID, &p.SwitchName, &p.IfIndex, &p.IfName, &p.IfAlias, &p.IfDescr, &p.IfType, &p.Physical,
 		&p.LLDPNeighbor, &p.OperUp, &p.SpeedMbps, &p.HCSupported, role, &p.Label, &p.Hidden, &p.MACCount,
-		&p.UplinkSuspect, &p.UplinkDismissed, &p.WANLinkID, seen}
+		&p.UplinkSuspect, &p.UplinkDismissed, &p.WANLinkID, &p.LAGIfIndex, seen}
 }
 
 func scanPort(row interface{ Scan(...any) error }) (*Port, error) {
