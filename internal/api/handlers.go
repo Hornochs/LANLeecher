@@ -436,7 +436,17 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	ip := a.ClientIP(r)
+	if !a.streams.acquire(ip) {
+		w.Header().Set("Retry-After", "30")
+		problem(w, http.StatusTooManyRequests, "too_many_streams", "Too Many Requests",
+			"too many open board streams; try again later")
+		return
+	}
+	defer a.streams.release(ip)
 	rc := http.NewResponseController(w)
+	// A client that stops reading must not block this goroutine forever.
+	deadline := func() { _ = rc.SetWriteDeadline(time.Now().Add(streamWriteTimeout * time.Second)) }
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no")
@@ -449,6 +459,7 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		data, _ := json.Marshal(b)
+		deadline()
 		if _, err := fmt.Fprintf(w, "event: board\ndata: %s\n\n", data); err != nil {
 			return false
 		}
@@ -468,6 +479,7 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-heartbeat.C:
+			deadline()
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil || rc.Flush() != nil {
 				return
 			}
