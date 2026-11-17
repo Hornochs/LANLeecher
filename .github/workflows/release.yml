@@ -2,7 +2,8 @@ name: Release
 
 # Publishing a release in the GitHub web interface (tag vX.Y.Z, notes written
 # there) triggers this workflow. It builds binaries, .deb/.rpm/Arch/.apk
-# packages and Docker images with GoReleaser, installs every package in a clean
+# packages (lanleecher and the host agent lanleecher-agent) and Docker images
+# with GoReleaser, installs every package in a clean
 # container, and only then attaches the files to the release, pushes the images
 # and writes a build provenance attestation.
 #
@@ -161,6 +162,10 @@ jobs:
             echo "# Debian/Ubuntu"
             echo "curl -LO https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/lanleecher_${GITHUB_REF_NAME#v}_amd64.deb"
             echo "sudo apt install ./lanleecher_${GITHUB_REF_NAME#v}_amd64.deb"
+            echo
+            echo "# Host agent (Linux, Proxmox VE), see docs/agent.md"
+            echo "curl -LO https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/lanleecher-agent_${GITHUB_REF_NAME#v}_amd64.deb"
+            echo "sudo apt install ./lanleecher-agent_${GITHUB_REF_NAME#v}_amd64.deb"
             echo
             echo "# Docker"
             owner=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
