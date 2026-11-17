@@ -29,6 +29,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Build with Go 1.26.11 (was 1.24.7) and current `golang.org/x/*` modules. `govulncheck` reported
   about 47 reachable standard-library vulnerabilities (`net/http`, `crypto/x509`) for the old
   toolchain and reports none now.
+- SNMP walks stop after 20000 rows per table.
+- New SQLite database files are created with mode 0600. Event and schedule names are limited to 200
+  characters in the API.
 
 ### Changed
 

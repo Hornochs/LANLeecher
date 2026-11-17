@@ -42,6 +42,13 @@ func Open(opts Options) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(opts.Path), 0o750); err != nil {
 		return nil, fmt.Errorf("create data directory: %w", err)
 	}
+	// Create the file with owner-only permissions so SQLite never makes it
+	// world-readable; the -wal/-shm files inherit the mode of the main file.
+	if f, err := os.OpenFile(opts.Path, os.O_CREATE|os.O_RDWR, 0o600); err != nil {
+		return nil, fmt.Errorf("create database file: %w", err)
+	} else {
+		f.Close()
+	}
 	dsn := "file:" + opts.Path +
 		"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)" +
 		"&_pragma=synchronous(NORMAL)&_txlock=immediate"

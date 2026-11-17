@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -149,8 +150,8 @@ func (a *API) startEvent(w http.ResponseWriter, r *http.Request) {
 		Name  string `json:"name"`
 		Notes string `json:"notes"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
-		problem(w, http.StatusBadRequest, "invalid_body", "Bad Request", `expected {"name": "...", "notes": "..."}`)
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" || utf8.RuneCountInString(body.Name) > 200 {
+		problem(w, http.StatusBadRequest, "invalid_body", "Bad Request", `expected {"name": "...", "notes": "..."}; name at most 200 characters`)
 		return
 	}
 	ev, err := a.DB.StartEvent(r.Context(), body.Name, body.Notes)
