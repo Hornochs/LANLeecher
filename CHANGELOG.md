@@ -32,6 +32,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - SNMP walks stop after 20000 rows per table.
 - New SQLite database files are created with mode 0600. Event and schedule names are limited to 200
   characters in the API.
+- Resolver: attendees can no longer flood the probe queue or the merge suggestions. New MAC/IP pairs
+  are capped per MAC and poll, merge suggestions per MAC and hostname, the `/merges` list shows the
+  newest 200 (with a note when cut), and the re-probe bookkeeping is pruned.
 
 ### Changed
 

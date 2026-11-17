@@ -399,10 +399,12 @@ func (db *DB) sourcePriority(source string) int {
 	return len(db.HostnamePriority)
 }
 
-// MACsWithHostname returns MACs (other than exclude) that had hostname since a time.
-func (db *DB) MACsWithHostname(ctx context.Context, hostname, exclude string, since time.Time) ([]string, error) {
-	rows, err := db.sql.QueryContext(ctx, `SELECT DISTINCT mac FROM mac_hostname_history
-		WHERE hostname = ? COLLATE NOCASE AND mac <> ? AND last_seen >= ?`, hostname, exclude, unix(since))
+// MACsWithHostname returns up to limit MACs (other than exclude) that had hostname since a time,
+// the most recently seen first.
+func (db *DB) MACsWithHostname(ctx context.Context, hostname, exclude string, since time.Time, limit int) ([]string, error) {
+	rows, err := db.sql.QueryContext(ctx, `SELECT mac FROM mac_hostname_history
+		WHERE hostname = ? COLLATE NOCASE AND mac <> ? AND last_seen >= ?
+		GROUP BY mac ORDER BY MAX(last_seen) DESC LIMIT ?`, hostname, exclude, unix(since), limit)
 	if err != nil {
 		return nil, err
 	}

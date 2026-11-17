@@ -215,8 +215,12 @@ func (db *DB) CreateMergeSuggestion(ctx context.Context, macA, macB, reason stri
 	return n > 0, nil
 }
 
-// ListMergeSuggestions returns open suggestions, optionally for one device.
-func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) ([]MergeSuggestion, error) {
+// MergeSuggestionLimit is the maximum number of suggestions ListMergeSuggestions returns.
+const MergeSuggestionLimit = 200
+
+// ListMergeSuggestions returns the newest open suggestions (at most MergeSuggestionLimit),
+// optionally for one device. truncated is true if more exist.
+func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) (out []MergeSuggestion, truncated bool, err error) {
 	query := `SELECT s.id, s.mac_a, s.mac_b, a.device_id, b.device_id, s.reason, s.status, s.created_at
 		FROM merge_suggestions s JOIN macs a ON a.mac = s.mac_a JOIN macs b ON b.mac = s.mac_b
 		WHERE s.status = 'open' AND a.device_id <> b.device_id`
@@ -225,22 +229,28 @@ func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) ([]Merge
 		query += ` AND (a.device_id = ? OR b.device_id = ?)`
 		args = append(args, deviceID, deviceID)
 	}
-	rows, err := db.sql.QueryContext(ctx, query+` ORDER BY s.created_at DESC`, args...)
+	args = append(args, MergeSuggestionLimit+1)
+	rows, err := db.sql.QueryContext(ctx, query+` ORDER BY s.created_at DESC, s.id DESC LIMIT ?`, args...)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
-	var out []MergeSuggestion
 	for rows.Next() {
 		var m MergeSuggestion
 		var created int64
 		if err := rows.Scan(&m.ID, &m.MACA, &m.MACB, &m.DeviceA, &m.DeviceB, &m.Reason, &m.Status, &created); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		m.CreatedAt = fromUnix(created)
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if len(out) > MergeSuggestionLimit {
+		out, truncated = out[:MergeSuggestionLimit], true
+	}
+	return out, truncated, nil
 }
 
 // DecideMergeSuggestion accepts (merging B's device into A's) or rejects a suggestion.

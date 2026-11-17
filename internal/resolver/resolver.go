@@ -22,6 +22,22 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/store"
 )
 
+// Limits against probe queue flooding: attendees control which MAC/IP pairs
+// a router or a DHCP server reports, so one MAC must not be able to occupy
+// the probe queue or create unbounded suggestions.
+const (
+	// maxNewPairsPerMAC is the number of new (MAC, IP) pairs of one MAC that
+	// are queued per observation batch (one poll or lease list).
+	maxNewPairsPerMAC = 4
+	// maxReprobePairsPerMAC is the number of IPs of one MAC that are re-probed per cycle.
+	maxReprobePairsPerMAC = 4
+	// maxSuggestionsPerName is the number of merge suggestions created per (MAC, hostname).
+	maxSuggestionsPerName = 5
+	// lastProbeMaxAge and lastProbeMaxSize bound the lastProbe map.
+	lastProbeMaxAge  = time.Hour
+	lastProbeMaxSize = 16384
+)
+
 // Pair is a MAC/IP association from an address source.
 type Pair struct {
 	MAC macaddr.MAC
@@ -84,6 +100,7 @@ func (s *Service) ObserveARP(ctx context.Context, pairs []Pair, source string) {
 		return
 	}
 	now := store.Now()
+	queued := map[string]int{}
 	for _, p := range pairs {
 		if !p.IP.IsValid() || p.IP.IsUnspecified() || p.IP.IsMulticast() || p.MAC.IsZero() || p.MAC.IsMulticast() {
 			continue
@@ -104,7 +121,10 @@ func (s *Service) ObserveARP(ctx context.Context, pairs []Pair, source string) {
 		}
 		if isNew {
 			s.log.Debug("new ip", "mac", mac, "ip", p.IP, "source", source)
-			s.enqueue(p)
+			if queued[mac] < maxNewPairsPerMAC {
+				queued[mac]++
+				s.enqueue(p)
+			}
 		}
 	}
 }
@@ -123,6 +143,7 @@ type DHCPLease struct {
 func (s *Service) ObserveDHCP(ctx context.Context, leases []DHCPLease) int {
 	now := store.Now()
 	known := 0
+	queued := map[string]int{}
 	for _, l := range leases {
 		if !l.IP.IsValid() || l.MAC.IsZero() || l.MAC.IsMulticast() {
 			continue
@@ -142,7 +163,8 @@ func (s *Service) ObserveDHCP(ctx context.Context, leases []DHCPLease) int {
 			s.log.Warn("record ip", "mac", mac, "err", err)
 			continue
 		}
-		if isNew {
+		if isNew && queued[mac] < maxNewPairsPerMAC {
+			queued[mac]++
 			s.enqueue(Pair{MAC: l.MAC, IP: l.IP})
 		}
 		if name := cleanHostname(l.Hostname); name != "" {
@@ -203,9 +225,14 @@ func (s *Service) reprobe(ctx context.Context) {
 		s.log.Warn("active ips", "err", err)
 		return
 	}
+	s.pruneLastProbe(time.Now())
+	perMAC := map[string]int{}
 	for _, a := range active {
 		ip, err := netip.ParseAddr(a.IP)
 		if err != nil {
+			continue
+		}
+		if perMAC[a.MAC] >= maxReprobePairsPerMAC {
 			continue
 		}
 		s.mu.Lock()
@@ -215,8 +242,33 @@ func (s *Service) reprobe(ctx context.Context) {
 			continue
 		}
 		if mac, err := macaddr.Parse(a.MAC); err == nil {
+			perMAC[a.MAC]++
 			s.enqueue(Pair{MAC: mac, IP: ip})
 		}
+	}
+}
+
+// pruneLastProbe drops entries that are older than the re-probe interval
+// (they are due anyway) or lastProbeMaxAge, and, if the map is still too
+// large, the oldest ones.
+func (s *Service) pruneLastProbe(now time.Time) {
+	maxAge := max(lastProbeMaxAge, 2*s.cfg.ProbeInterval)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for ip, t := range s.lastProbe {
+		if now.Sub(t) > maxAge {
+			delete(s.lastProbe, ip)
+		}
+	}
+	for len(s.lastProbe) > lastProbeMaxSize {
+		var oldest netip.Addr
+		var ot time.Time
+		for ip, t := range s.lastProbe {
+			if !oldest.IsValid() || t.Before(ot) {
+				oldest, ot = ip, t
+			}
+		}
+		delete(s.lastProbe, oldest)
 	}
 }
 
@@ -275,7 +327,7 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 	if err != nil {
 		return
 	}
-	others, err := s.db.MACsWithHostname(ctx, name, mac, ev.StartedAt)
+	others, err := s.db.MACsWithHostname(ctx, name, mac, ev.StartedAt, maxSuggestionsPerName)
 	if err != nil {
 		s.log.Warn("merge lookup", "err", err)
 		return

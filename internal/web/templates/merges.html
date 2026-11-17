@@ -1,6 +1,7 @@
 {{define "content"}}
 <h1>{{.T "merges.title"}}</h1>
 <p class="muted">{{.T "merges.hint"}}</p>
+{{if .Data.Truncated}}<p class="muted">{{.T "merges.truncated"}}</p>{{end}}
 <section class="card">
 <table>
   <thead><tr><th>{{.T "merges.device_a"}}</th><th>{{.T "merges.device_b"}}</th><th>{{.T "merges.reason"}}</th><th>{{.T "col.created"}}</th><th></th></tr></thead>
