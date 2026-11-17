@@ -439,6 +439,7 @@ var messages = map[string][2]string{
 	"settings.public_url":        {"Öffentliche URL", "Public URL"},
 	"settings.storage":           {"Datenbank", "Database"},
 	"settings.polling":           {"Abfrage", "Polling"},
+	"settings.uplink_threshold":  {"Uplink-Hinweis ab %d MACs", "uplink hint above %d MACs"},
 	"settings.resolver_order":    {"Resolver-Reihenfolge", "Resolver order"},
 	"settings.hostname_priority": {"Hostnamen-Priorität", "Hostname priority"},
 	"settings.probes":            {"Namensabfragen", "Name probes"},
