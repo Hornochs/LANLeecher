@@ -502,6 +502,9 @@ func (a *API) metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(&b, "# HELP lanleecher_switch_up Whether the last poll of a switch succeeded.\n")
 	fmt.Fprintf(&b, "# TYPE lanleecher_switch_up gauge\n")
 	for _, s := range switches {
+		if s.Archived {
+			continue
+		}
 		v := 0
 		if s.LastPollOK && s.Enabled {
 			v = 1

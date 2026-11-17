@@ -22,6 +22,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Export and import:** `lanleecher export` writes switches, ports, devices, MACs and events with
+  their traffic to a gzip JSON file (never credentials, users or tokens); `lanleecher import` and
+  Admin → Export/Import read it into another instance, with a preview, a backup and merging of
+  known MACs. Imported switches are *archived*: no credentials, never polled, shown with a badge.
+  See [docs/export-import.md](docs/export-import.md).
 - **Docker Compose examples:** `compose.yaml` (named volume) is revised and `compose.bind.yaml`
   (data in `./data`, owned by UID 100 / GID 101) is new; both are tested in CI. The Docker section
   of [installation.md](docs/installation.md#docker-compose) explains when to use which, backup

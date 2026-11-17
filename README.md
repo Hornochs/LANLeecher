@@ -138,6 +138,7 @@ second variant). Backup, reverse proxy and details:
 - [docs/switch-compatibility.md](docs/switch-compatibility.md) – required MIBs, FDB adapters, tested models
 - [docs/kea.md](docs/kea.md) – Kea DHCP 2.x and 3.x: configuration, certificates, troubleshooting
 - [docs/concepts.md](docs/concepts.md) – events, devices, port groups, roles, hiding, directions
+- [docs/export-import.md](docs/export-import.md) – move recordings to another instance
 - [docs/api.md](docs/api.md) – authentication, scopes, endpoints, errors, metrics
 - [examples/](examples/) – Discord bot, Grafana, Go and shell clients
 - [docs/architecture.md](docs/architecture.md) – how LANLeecher is built

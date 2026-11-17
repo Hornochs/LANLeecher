@@ -46,7 +46,7 @@ Only the accountant writes traffic; collector, FDB source and resolver merely de
 ### Repository layout
 
 ```
-cmd/lanleecher/          # CLI: server, config init, migrate, backup, user, event, switch, version
+cmd/lanleecher/          # CLI: server, config init, migrate, backup, export, import, user, event, switch, version
 internal/collector/      # interface + snmp
 internal/fdb/            # interface + bridge, qbridge, vendor adapters, LLDP
 internal/accounting/     # delta logic, reset detection, attribution
@@ -197,7 +197,7 @@ The model separates master data (switches, ports, devices), running state (last 
 
 | Table | Important fields | Purpose |
 | --- | --- | --- |
-| `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled | Configured switches |
+| `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled, archived (imported: no credentials, never polled) | Configured switches |
 | `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`), display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
 | `port_counter_state` | port\_id, in\_raw, out\_raw, counter\_bits, sys\_uptime, discontinuity, polled\_at | Last raw value for delta computation |
 | `port_traffic_totals` | event\_id, port\_id, bytes\_down, bytes\_up, updated\_at | Traffic of every port per event, uplinks included |
@@ -243,6 +243,13 @@ Traffic is always booked into an active event. Without an active event, LANLeech
 - Multi-select, e.g. to set all ports 45–48 to uplink or hide them at once.
 - Next to each port: currently learned MACs with hostname and the traffic in the active event.
 - Virtual interfaces (VLAN SVIs, loopback) are hidden by a filter in the port list; port channels themselves are typically uplinks.
+
+### Export and import
+
+`lanleecher export` / `import` and Admin → Export/Import move recordings between instances
+(gzip JSON with natural keys, no credentials, users or tokens; `internal/transfer`). Imported
+switches are archived (`switches.archived`), events are imported as ended. Details:
+[docs/export-import.md](docs/export-import.md).
 
 ### Hiding from rankings
 

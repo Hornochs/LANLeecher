@@ -1,0 +1,88 @@
+{{define "report"}}{{/* dot: Page; uses .Data.Report */}}
+{{with .Data.Report}}
+<h4>{{$.T "transfer.switches"}}</h4>
+<table>
+  <thead><tr><th>{{$.T "col.name"}}</th><th>{{$.T "transfer.host"}}</th><th>{{$.T "transfer.action"}}</th><th>{{$.T "transfer.as"}}</th><th class="num">{{$.T "transfer.new_ports"}}</th></tr></thead>
+  <tbody>
+  {{range .Switches}}
+  <tr><td>{{.Name}}</td><td><code>{{.Host}}</code></td><td>{{$.T (print "transfer.act_" .Action)}}</td><td>{{.TargetName}}</td><td class="num">{{.PortsNew}}</td></tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">{{$.T "switches.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+<p>{{$.T "transfer.counts" .DevicesNew .MACsNew .MACsMerged}}</p>
+<h4>{{$.T "transfer.events"}}</h4>
+<table>
+  <thead><tr><th>{{$.T "col.event"}}</th><th>{{$.T "col.name"}}</th><th>{{$.T "transfer.action"}}</th><th>{{$.T "transfer.as"}}</th><th>{{$.T "transfer.note"}}</th></tr></thead>
+  <tbody>
+  {{range .Events}}
+  <tr><td><code>{{.Slug}}</code></td><td>{{.Name}}</td><td>{{$.T (print "transfer.act_" .Action)}}</td><td>{{if .TargetSlug}}<code>{{.TargetSlug}}</code>{{end}}</td><td class="small muted">{{if .Closed}}{{$.T "transfer.was_running"}}{{end}}</td></tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">{{$.T "transfer.no_events"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+<p>{{$.T "transfer.traffic_rows" .TrafficRows}}</p>
+{{end}}
+{{end}}
+
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "admin.transfer"}}</h1>
+{{with .Data}}
+{{if .Report}}
+<section class="card">
+  <h3>{{if .Done}}{{$.T "transfer.done"}}{{else}}{{$.T "transfer.preview"}}{{end}}</h3>
+  {{if .Done}}<p>{{$.T "transfer.backup"}} <code>{{.Backup}}</code></p>
+  {{else}}<p class="alert alert-warn">{{$.T "transfer.preview_note"}}</p>{{end}}
+  <p class="muted">{{$.T "transfer.source"}} {{.Doc.Software}}{{if .Doc.Source}} · {{.Doc.Source}}{{end}} · {{$.T "transfer.exported_at"}} {{dt .ExportedAt}}</p>
+  {{template "report" $}}
+  {{if not .Done}}
+  <div class="actions">
+    <form method="post" action="/admin/transfer/import/confirm">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="id" value="{{.ID}}">
+      <input type="hidden" name="event_conflict" value="{{.Conflict}}">
+      <button type="submit" class="primary">{{$.T "transfer.confirm"}}</button>
+    </form>
+    <form method="post" action="/admin/transfer/import/cancel">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="id" value="{{.ID}}">
+      <button type="submit">{{$.T "transfer.cancel"}}</button>
+    </form>
+  </div>
+  {{end}}
+</section>
+{{end}}
+{{if not .Done}}
+{{if not .Report}}
+<section class="card">
+  <h3>{{$.T "transfer.export"}}</h3>
+  <p class="muted">{{$.T "transfer.export_help"}}</p>
+  <form method="get" action="/admin/transfer/export" class="form-grid">
+    <fieldset><legend>{{$.T "transfer.events"}}</legend>
+      {{range .Events}}<label class="check"><input type="checkbox" name="event" value="{{.Slug}}"> {{.Name}} <code class="small">{{.Slug}}</code></label>
+      {{else}}<span class="muted">{{$.T "transfer.no_events"}}</span>{{end}}
+    </fieldset>
+    <button type="submit" class="primary">{{$.T "transfer.download"}}</button>
+  </form>
+</section>
+<section class="card">
+  <h3>{{$.T "transfer.import"}}</h3>
+  <p class="muted">{{$.T "transfer.import_help"}}</p>
+  <form method="post" action="/admin/transfer/import" enctype="multipart/form-data" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>{{$.T "transfer.file"}}<input type="file" name="file" required accept=".gz,.json.gz,application/gzip"></label>
+    <label>{{$.T "transfer.conflict"}}
+      <select name="event_conflict">
+        <option value="new">{{$.T "transfer.conflict_new"}}</option>
+        <option value="skip">{{$.T "transfer.conflict_skip"}}</option>
+      </select></label>
+    <button type="submit" class="primary">{{$.T "transfer.preview_btn"}}</button>
+  </form>
+</section>
+{{end}}
+{{end}}
+{{end}}
+{{end}}

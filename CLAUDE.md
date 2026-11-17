@@ -10,7 +10,7 @@ commit credentials, internal hostnames, IP addresses or paths of a specific inst
 ## Architecture
 
 ```
-cmd/lanleecher/          CLI (cobra): server, config init, migrate, backup, user, event, switch, version
+cmd/lanleecher/          CLI (cobra): server, config init, migrate, backup, export, import, user, event, switch, version
 internal/accounting/     Pure delta and attribution logic – no I/O, table-driven tests
 internal/collector/      IF-MIB polling (SNMP), interface classification (physical/LAG/virtual)
 internal/fdb/            MAC → port (Q-BRIDGE, BRIDGE, Cisco community@vlan) and LLDP neighbors
@@ -18,6 +18,7 @@ internal/resolver/       IP/hostname: snmp-arp, local-neigh, netbios, mdns, llmn
 internal/scheduler/      One poll loop per switch; books deltas into the active event
 internal/store/          SQLite (modernc, no CGO), goose migrations in migrations/sqlite/
 internal/board/          Beamer data; /board and /api/v1/board deliver exactly the same
+internal/transfer/       Export file format (gzip JSON, natural keys), read limits and validation
 internal/api/            REST v1; openapi.yaml is the single source of truth (tests check routes ↔ spec and
                          validate every response against it – add a call to validate_test.go for new endpoints)
 internal/web/            html/template + htmx, embedded assets, i18n (en/de) in i18n.go

@@ -62,7 +62,7 @@ func (m *Manager) Reload(ctx context.Context) error {
 	}
 	want := map[int64]*store.Switch{}
 	for _, s := range switches {
-		if s.Enabled {
+		if s.Enabled && !s.Archived {
 			want[s.ID] = s
 		}
 	}

@@ -9,17 +9,18 @@
   <tbody>
   {{range .Data.Rows}}
   <tr>
-    <td><span class="dot {{if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span>
+    <td><span class="dot {{if .Switch.Archived}}dot-off{{else if not .Switch.Enabled}}dot-off{{else if .Switch.LastPollOK}}dot-ok{{else}}dot-err{{end}}"></span>
       <a href="/switches/{{.Switch.ID}}">{{.Switch.Name}}</a>{{if .Switch.ARPSource}} <span class="badge">ARP</span>{{end}}
       {{if .Status.NoFDB}} <span class="badge badge-warn" title="{{$.T "switches.no_fdb_hint"}}">{{$.T "switches.no_fdb"}}</span>{{end}}</td>
     <td><code>{{.Switch.Host}}{{if ne .Switch.Port 161}}:{{.Switch.Port}}{{end}}</code></td>
     <td>{{.Switch.SNMPVersion}}</td>
     <td class="small">{{.Switch.SysName}}<br><span class="muted">{{.Switch.SysDescr}}</span></td>
     <td class="num">{{.Ports}}{{if .Suspects}} <span class="badge badge-warn" title="{{$.T "ports.uplink_suspect"}}">{{.Suspects}} ⚠</span>{{end}}</td>
-    <td>{{if .Switch.LastPollAt}}{{ago (deref .Switch.LastPollAt)}}{{if .Status.Running}} <span class="muted small">({{dur .Status.LastDuration}})</span>{{end}}{{else}}{{$.T "switches.never"}}{{end}}
+    <td>{{if .Switch.Archived}}<span class="badge badge-muted" title="{{$.T "switches.archived_hint"}}">{{$.T "switches.archived"}}</span>{{else}}{{if .Switch.LastPollAt}}{{ago (deref .Switch.LastPollAt)}}{{if .Status.Running}} <span class="muted small">({{dur .Status.LastDuration}})</span>{{end}}{{else}}{{$.T "switches.never"}}{{end}}
       {{if and .Switch.Enabled (not .Switch.LastPollOK) .Switch.LastError}}<br><span class="error small">{{.Switch.LastError}}</span>{{end}}
-      {{if not .Switch.Enabled}}<span class="badge badge-muted">{{$.T "switches.disabled"}}</span>{{end}}</td>
-    <td>{{if $.Can "admin"}}<a href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}</td>
+      {{if not .Switch.Enabled}}<span class="badge badge-muted">{{$.T "switches.disabled"}}</span>{{end}}{{end}}</td>
+    <td>{{if and ($.Can "admin") (not .Switch.Archived)}}<a href="/switches/{{.Switch.ID}}/edit">{{$.T "action.edit"}}</a>{{end}}
+      {{if and ($.Can "admin") .Switch.Archived}}<form method="post" action="/switches/{{.Switch.ID}}/delete" data-confirm="{{$.T "switches.delete_confirm"}}"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button type="submit" class="danger">{{$.T "action.delete"}}</button></form>{{end}}</td>
   </tr>
   {{else}}
   <tr><td colspan="7" class="muted">{{$.T "switches.none"}}</td></tr>
