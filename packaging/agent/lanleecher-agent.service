@@ -1,0 +1,39 @@
+[Unit]
+Description=LANLeecher agent – traffic per MAC for LANLeecher
+Documentation=https://github.com/lan-dot-party/LANLeecher/blob/main/docs/agent.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lanleecher-agent
+Group=lanleecher-agent
+ExecStart=/usr/bin/lanleecher-agent run -c /etc/lanleecher/agent.conf
+Restart=on-failure
+RestartSec=10
+
+# Hardening: the agent only reads /sys/class/net and, on Proxmox VE,
+# /etc/pve (the postinstall script then adds SupplementaryGroups=www-data in
+# a drop-in), and talks HTTPS to LANLeecher.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

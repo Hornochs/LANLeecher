@@ -21,7 +21,8 @@ mkdir -p /var/lib/lanleecher /etc/lanleecher
 chown lanleecher:lanleecher /var/lib/lanleecher
 chmod 0750 /var/lib/lanleecher
 chown root:lanleecher /etc/lanleecher
-chmod 0750 /etc/lanleecher
+# 0751: traversable for the lanleecher-agent package, not listable.
+chmod 0751 /etc/lanleecher
 chown root:lanleecher /etc/lanleecher/config.yaml
 chmod 0640 /etc/lanleecher/config.yaml
 

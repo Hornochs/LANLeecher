@@ -113,6 +113,10 @@ const (
 	ScopeReadClients  = "read:clients"
 	ScopeWriteEvents  = "write:events"
 	ScopeReadBoard    = "read:board"
+	// ScopeAgentReport lets a host agent send its counters. Agent tokens are
+	// created on the agents page and carry only this scope; it is not offered
+	// for normal API tokens and never granted to web sessions.
+	ScopeAgentReport = "agent:report"
 )
 
 // AllScopes in UI order.

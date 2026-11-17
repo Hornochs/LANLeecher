@@ -241,6 +241,31 @@ func (p *poller) book(ctx context.Context, tx *store.Tx, eventID int64, port *st
 				return err
 			}
 		}
+		// Host agents on this port split it: their MACs get their share, the
+		// rest stays with the port group. Only MACs the switch sees on this
+		// port count, and the shares never exceed the port delta.
+		if p.m.Agents != nil {
+			if agent := p.m.Agents.Take(target.Members, port.ID, at); len(agent) > 0 {
+				downs := make(map[macaddr.MAC]uint64, len(agent))
+				ups := make(map[macaddr.MAC]uint64, len(agent))
+				for m, d := range agent {
+					downs[m], ups[m] = d.Down, d.Up
+				}
+				downShares, downRest := accounting.Split(down, downs)
+				upShares, upRest := accounting.Split(up, ups)
+				for _, m := range target.Members {
+					if d, u := downShares[m], upShares[m]; d > 0 || u > 0 {
+						if err := tx.AddSubjectTraffic(ctx, eventID, store.SubjectMAC, m.String(), port.ID, d, u, at); err != nil {
+							return err
+						}
+					}
+				}
+				down, up = downRest, upRest
+				if down == 0 && up == 0 {
+					return nil
+				}
+			}
+		}
 		return tx.AddSubjectTraffic(ctx, eventID, store.SubjectPortGroup, strconv.FormatInt(gid, 10), port.ID, down, up, at)
 	case accounting.TargetUnassigned:
 		return tx.AddSubjectTraffic(ctx, eventID, store.SubjectUnassigned, strconv.FormatInt(port.ID, 10), port.ID, down, up, at)

@@ -1,0 +1,2 @@
+INTERFACE=bond0
+DEVTYPE=bond

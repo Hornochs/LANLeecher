@@ -231,8 +231,9 @@ Authorization: Bearer llk_3Fq9…
 | `read:clients` | client details: MAC, IP, hostname, histories, ports; MAC/IP/hostname fields in rankings |
 | `write:events` | start and stop events |
 | `read:board` | the board endpoints only – for bots and second screens |
+| `agent:report` | host agents only: `POST /api/v1/agent/report`; agent tokens are created under Admin → Agents and carry nothing else |
 
-Logged-in users have `read:*` as viewers and `write:events` from operator upwards.
+Logged-in users have `read:*` as viewers and `write:events` from operator upwards; `agent:report` is never granted to a session.
 
 ## Conventions
 
@@ -266,6 +267,7 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 | `GET /api/v1/wan` | read:rankings | Internet traffic per WAN link of the running event (`event`, `series`, `link`) |
 | `GET /api/v1/events/{slug}/wan` | read:rankings | The same for one event; see [wan.md](wan.md) |
 | `GET /api/v1/wan-links` | read:rankings | Configured WAN links with their ports |
+| `POST /api/v1/agent/report` | agent:report | Counters of a host agent; see [agent.md](agent.md) |
 | `GET /api/v1/board` | read:board | Beamer content; `limit` 10/20/50, `event` |
 | `GET /api/v1/board/stream` | read:board | The same as Server-Sent Events after every poll |
 | `GET /api/v1/metrics` | read:rankings | Prometheus metrics |
@@ -451,7 +453,7 @@ An annotated example is in [configs/lanleecher.example.yaml](../configs/lanleech
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `resolver.order` | []string | `[snmp-arp, local-neigh, netbios, mdns, dns-ptr]` | Lists the enabled resolvers. An empty list turns IP and hostname discovery off. Allowed: `snmp-arp`, `local-neigh`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
-| `resolver.hostname_priority` | []string | `[dhcp, netbios, mdns, llmnr, dns-ptr]` | Ranks hostname sources when choosing the displayed name; earlier sources win. Allowed: `dhcp`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
+| `resolver.hostname_priority` | []string | `[agent, dhcp, netbios, mdns, llmnr, dns-ptr]` | Ranks hostname sources when choosing the displayed name; earlier sources win. "agent" is the hostname a host agent reports (for virtual machines and containers: their name in Proxmox). Allowed: `agent`, `dhcp`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
 | `resolver.probe_interval` | duration | `10m` | How often NetBIOS, mDNS, LLMNR and DNS are asked again for the name of each active IP. New IPs are probed immediately. |
 | `resolver.probe_rate` | int | `20` | The maximum number of name queries per second. |
 | `resolver.probe_timeout` | duration | `1s` | The timeout of a single NetBIOS, mDNS or LLMNR query. |
@@ -511,6 +513,7 @@ tags:
   - name: events
   - name: clients
   - name: wan
+  - name: agents
   - name: board
   - name: operations
 
@@ -761,6 +764,73 @@ paths:
                   links:
                     type: array
                     items: {$ref: "#/components/schemas/WANLink"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/agent/report:
+    post:
+      tags: [agents]
+      operationId: agentReport
+      summary: Counters of a host agent
+      description: |
+        Scope `agent:report` – only agent tokens (created on the agents page) carry it; web sessions never do.
+        Counters are absolute and in the MAC's point of view (`down_bytes` = traffic to the MAC). LANLeecher
+        computes the deltas itself. The switch stays authoritative: agent counters only split the traffic of a
+        switch port that carries several MACs, and only for MACs the switch sees on that port. IP addresses and
+        names are recorded (source `agent`) for MACs LANLeecher already knows; link-local, loopback and
+        multicast addresses are ignored. At most 512 interfaces and 256 KiB per report.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_version, hostname, mode, interfaces]
+              additionalProperties: false
+              properties:
+                agent_version: {type: string, maxLength: 64}
+                hostname: {type: string, maxLength: 253}
+                mode: {type: string, enum: [linux, proxmox], description: Collector the agent runs.}
+                interfaces:
+                  type: array
+                  maxItems: 512
+                  items:
+                    type: object
+                    required: [mac, ifname, kind, down_bytes, up_bytes]
+                    additionalProperties: false
+                    properties:
+                      mac: {type: string}
+                      ifname: {type: string, maxLength: 64}
+                      kind: {type: string, enum: [host, vm, ct]}
+                      name: {type: string, maxLength: 128, description: Name of the VM or container.}
+                      vmid: {type: integer, minimum: 0}
+                      vlan: {type: integer, minimum: 0, maximum: 4095}
+                      down_bytes: {type: integer, minimum: 0, description: Bytes sent to the MAC since the counter started.}
+                      up_bytes: {type: integer, minimum: 0, description: Bytes sent by the MAC since the counter started.}
+                      ips:
+                        type: array
+                        maxItems: 16
+                        items: {type: string}
+      responses:
+        "200":
+          description: Report stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, conflicts, ignored]
+                properties:
+                  accepted: {type: integer, description: Interfaces whose counters were stored.}
+                  conflicts: {type: integer, description: MACs another agent reports at the same time (ignored).}
+                  ignored: {type: integer, description: Invalid entries (bad MAC, kind or field).}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "413":
+          description: Report larger than 256 KiB
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
         "401": {$ref: "#/components/responses/Unauthorized"}
         "403": {$ref: "#/components/responses/Forbidden"}
         "429": {$ref: "#/components/responses/TooManyRequests"}
@@ -1136,7 +1206,7 @@ components:
     bearer:
       type: http
       scheme: bearer
-      description: "API token `llk_...` with scopes read:rankings, read:clients, write:events, read:board."
+      description: "API token `llk_...` with scopes read:rankings, read:clients, write:events, read:board; agent tokens carry only agent:report."
   parameters:
     event:
       name: event

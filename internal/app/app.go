@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lan-dot-party/lanleecher/internal/agentpool"
 	"github.com/lan-dot-party/lanleecher/internal/auth"
 	"github.com/lan-dot-party/lanleecher/internal/board"
 	"github.com/lan-dot-party/lanleecher/internal/config"
@@ -32,6 +33,7 @@ type App struct {
 	Resolver *resolver.Service
 	DHCP     *kea.Manager
 	Planner  *scheduler.EventPlanner
+	Agents   *agentpool.Pool
 
 	trusted []netip.Prefix
 }

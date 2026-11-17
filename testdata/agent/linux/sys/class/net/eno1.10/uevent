@@ -1,0 +1,2 @@
+INTERFACE=eno1.10
+DEVTYPE=vlan

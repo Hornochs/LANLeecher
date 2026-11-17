@@ -13,5 +13,6 @@ changed after it is accepted; a new record supersedes it.
 | [0006](0006-board-is-the-api.md) | The beamer view renders the board API | accepted |
 | [0007](0007-uplinks-confirmed-by-admin.md) | Uplinks are suggested, never set automatically | accepted |
 | [0008](0008-kea-read-only-with-pinning.md) | Kea: both API generations, read-only, certificates trusted by an admin | accepted |
+| [0009](0009-agents-only-split-ports.md) | Host agents only split switch ports | accepted |
 
 Template: context – decision – consequences.

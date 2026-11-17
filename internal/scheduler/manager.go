@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lan-dot-party/lanleecher/internal/accounting"
+	"github.com/lan-dot-party/lanleecher/internal/agentpool"
 	"github.com/lan-dot-party/lanleecher/internal/collector"
 	"github.com/lan-dot-party/lanleecher/internal/config"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
@@ -30,6 +31,9 @@ type Manager struct {
 
 	// OnPoll is called after every successful counter poll (board refresh).
 	OnPoll func()
+	// Agents holds the counters of host agents; nil disables splitting
+	// shared ports.
+	Agents *agentpool.Pool
 
 	mu      sync.Mutex
 	ctx     context.Context

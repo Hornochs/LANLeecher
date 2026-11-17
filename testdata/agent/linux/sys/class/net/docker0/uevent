@@ -1,0 +1,2 @@
+INTERFACE=docker0
+DEVTYPE=bridge

@@ -104,6 +104,15 @@ jobs:
             apk) pkg=$(ls "$PWD"/dist/lanleecher_*_amd64.apk) ;;
           esac
           sh packaging/test-install.sh "${{ matrix.format }}" "$pkg"
+      - name: Install and remove the agent
+        run: |
+          case "${{ matrix.format }}" in
+            deb) pkg=$(ls "$PWD"/dist/lanleecher-agent_*_amd64.deb) ;;
+            rpm) pkg=$(ls "$PWD"/dist/lanleecher-agent_*_amd64.rpm) ;;
+            archlinux) pkg=$(ls "$PWD"/dist/lanleecher-agent_*_amd64.pkg.tar.zst) ;;
+            apk) pkg=$(ls "$PWD"/dist/lanleecher-agent_*_amd64.apk) ;;
+          esac
+          sh packaging/test-install-agent.sh "${{ matrix.format }}" "$pkg"
 
   publish:
     name: Publish

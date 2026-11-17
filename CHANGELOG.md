@@ -14,6 +14,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `/etc/lanleecher` is now mode `0751` (traversable, not listable), so the agent package can read
+  its own configuration next to the server's.
+- The certificate checks of the Kea client moved to a shared package (`internal/tlsclient`), which
+  the agent uses too; behaviour unchanged.
 - Dependencies updated: kin-openapi 0.153, chi 5.5, gosnmp 1.47, goose 3.29, modernc sqlite 1.60
   (supersedes Dependabot #2).
 - GitHub Actions updated and pinned to commit SHAs (supersedes #3); golangci-lint v2.15.0 with a
@@ -24,6 +28,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Host agent (`lanleecher-agent`)** for Linux hosts and Proxmox VE nodes, as its own package
+  (deb, rpm, Arch, Alpine). It reports the bytes per MAC address of the host and of every running
+  guest (the same tap/veth counters Proxmox uses for its graphs) to the new endpoint
+  `POST /api/v1/agent/report`. LANLeecher uses them only to split a switch port with several MAC
+  addresses between them; the switch stays authoritative, so an agent cannot add traffic or create
+  clients ([ADR 0009](docs/adr/0009-agents-only-split-ports.md)). Agents are managed under
+  Admin → Agents with their own token (scope `agent:report`). The agent always encrypts and checks
+  the server certificate (system roots, CA file or pin); plain HTTP or an unchecked certificate need
+  explicit settings. Agent-reported names and IPs are a new hostname source `agent`
+  (first in the default `resolver.hostname_priority`). See [docs/agent.md](docs/agent.md).
 - **Network map:** a new page "Map" shows switches and internet connections on a background image
   (PNG, JPEG or GIF), with the links between them and their live traffic. Links come from LLDP
   (chassis ID and system name), from the MAC tables as a fallback, from link aggregation

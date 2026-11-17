@@ -267,11 +267,18 @@ func (t *APIToken) HasScope(scope string) bool {
 const tokenCols = `id, name, token_hash, prefix, scopes, allowed_ips, COALESCE(created_by, 0), created_at, expires_at, last_used, revoked`
 
 func scanToken(row interface{ Scan(...any) error }) (*APIToken, error) {
+	return scanTokenWith(row)
+}
+
+// scanTokenWith scans extra leading columns into before, then the token
+// columns (tokenCols order).
+func scanTokenWith(row interface{ Scan(...any) error }, before ...any) (*APIToken, error) {
 	var t APIToken
 	var scopes, ips string
 	var created int64
 	var exp, used sql.NullInt64
-	err := row.Scan(&t.ID, &t.Name, &t.TokenHash, &t.Prefix, &scopes, &ips, &t.CreatedBy, &created, &exp, &used, &t.Revoked)
+	dest := append(before, &t.ID, &t.Name, &t.TokenHash, &t.Prefix, &scopes, &ips, &t.CreatedBy, &created, &exp, &used, &t.Revoked)
+	err := row.Scan(dest...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

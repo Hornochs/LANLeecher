@@ -42,7 +42,7 @@ type Server struct {
 
 var pageFiles = []string{
 	"login", "dashboard", "rankings", "search", "device", "merges", "events", "event", "compare",
-	"switches", "switch_form", "ports", "users", "tokens", "audit", "settings", "account", "board", "error",
+	"switches", "switch_form", "ports", "users", "tokens", "agents", "audit", "settings", "account", "board", "error",
 	"dhcp_list", "dhcp_form", "dhcp_source", "transfer", "wan", "maps",
 }
 
@@ -132,6 +132,9 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/admin/tokens", s.tokens)
 			r.Post("/admin/tokens", s.tokenCreate)
 			r.Post("/admin/tokens/{id}/revoke", s.tokenRevoke)
+			r.Get("/admin/agents", s.agents)
+			r.Post("/admin/agents", s.agentCreate)
+			r.Post("/admin/agents/{id}/revoke", s.agentRevoke)
 			r.Get("/admin/wan", s.wanPage)
 			r.Post("/admin/wan", s.wanCreate)
 			r.Post("/admin/wan/{id}", s.wanUpdate)

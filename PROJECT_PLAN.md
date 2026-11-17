@@ -131,6 +131,7 @@ On every counter poll, the port delta is assigned like this:
 - **Role `server`** → assigned like `client`; the port is hidden in rankings by default.
 - **Role `wan`** (router/modem port of a named internet connection) → like `uplink`: counted on the port only. Internet download is `ifHCInOctets` of the port; the mapping exists only in `accounting.WANDirection`. Hidden by default.
 - **Role `uplink`** (trunk to other switches/the router) → counted on the port, but never assigned to a MAC. Otherwise the traffic behind it would be counted twice. Hidden by default.
+- **Host agent on a shared port** → if a host agent (`lanleecher-agent`, Linux or Proxmox VE) reported counters for MACs that the FDB shows on a port with several MACs, the port delta is split between them (`accounting.Split`); the rest stays with the port group. Shares plus rest always equal the port delta, so agents never add traffic (ADR 0009, [docs/agent.md](docs/agent.md)).
 - **No MAC learned** (e.g. right after link-up) → the delta stays on the port as "unassigned" and is not credited to the next MAC that shows up.
 
 Regardless of the role, every port delta is additionally booked in `port_traffic_totals`. Every port is therefore fully tracked; whether it appears in rankings is controlled only by "Hide in rankings" (see below).
@@ -224,6 +225,7 @@ The model separates master data (switches, ports, devices), running state (last 
 | `sessions` | id, user\_id, expires\_at, csrf\_token | Login sessions |
 | `api_tokens` | id, name, token\_hash, scopes, allowed\_ips, created\_by, expires\_at, last\_used | API access |
 | `audit_log` | id, user\_id, action, target, at | Who changed what |
+| `agents` | token\_id, hostname, mode, version, remote\_ip, interfaces, last\_report | Host agents; one API token with scope `agent:report` each. Agent counters themselves live in memory only |
 
 Rankings only read `traffic_totals` (indexed on `event_id, bytes_down` and `bytes_up`), so they load instantly even with many clients. The port is part of the `traffic_totals` key: "Hide in rankings" can thus be filtered per port, even if a device changes ports during an event. Visibility is not written into the totals but filtered at query time (join on `ports` and `devices`). Hiding or unhiding therefore takes effect immediately, also retroactively for past events, without recomputing data.
 
@@ -372,6 +374,7 @@ Releases are built by GoReleaser with nFPM as soon as a release with a `vX.Y.Z` 
 - Post-install: create the user, generate `secret.key` if missing; migrations run automatically on start. No auto-start, so the admin configures first; updates restart a running service.
 - systemd hardening: `ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`, no capabilities, only `/var/lib/lanleecher` writable.
 - Docker image on `ghcr.io/<owner>/lanleecher` (like FlowGauge), with an example `compose.yaml`.
+- Second package `lanleecher-agent` (same release): `/usr/bin/lanleecher-agent`, `/etc/lanleecher/agent.conf` (config file, `root:lanleecher-agent` 0640), unit `lanleecher-agent.service` (user `lanleecher-agent`, no capabilities; on Proxmox VE a drop-in adds the group `www-data` to read `/etc/pve`). Tested in the same containers. `/etc/lanleecher` is `0751` so both packages can share it.
 - If the CLI runs as root (`sudo lanleecher user create …`), files it creates are handed to the owner of the data directory, so the service can still write them.
 
 **Database in the package:** packages and the Docker image start with SQLite at `/var/lib/lanleecher/lanleecher.db` – no database server and no further dependencies. SQLite runs in WAL mode; `lanleecher backup` creates a consistent copy while running (`VACUUM INTO`, default target `<data dir>/backups/`). There is no other database backend: SQLite easily handles the write load of a LAN party and keeps installation and backups trivial.
@@ -467,3 +470,4 @@ Each milestone ends with green tests and a working state; they are worked throug
 - [x] Byte notation: decimal (1 GB = 10⁹ bytes), as usual for switch counters and providers.
 - [x] Project language: English for code, docs and commits; the UI is bilingual (English default, German).
 - [x] Database: SQLite only; PostgreSQL support was dropped (ADR 0005).
+- [x] Host agents (Linux, Proxmox VE) only split shared ports; the switch stays authoritative (ADR 0009).

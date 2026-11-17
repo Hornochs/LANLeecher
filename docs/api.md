@@ -29,8 +29,9 @@ Authorization: Bearer llk_3Fq9…
 | `read:clients` | client details: MAC, IP, hostname, histories, ports; MAC/IP/hostname fields in rankings |
 | `write:events` | start and stop events |
 | `read:board` | the board endpoints only – for bots and second screens |
+| `agent:report` | host agents only: `POST /api/v1/agent/report`; agent tokens are created under Admin → Agents and carry nothing else |
 
-Logged-in users have `read:*` as viewers and `write:events` from operator upwards.
+Logged-in users have `read:*` as viewers and `write:events` from operator upwards; `agent:report` is never granted to a session.
 
 ## Conventions
 
@@ -64,6 +65,7 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 | `GET /api/v1/wan` | read:rankings | Internet traffic per WAN link of the running event (`event`, `series`, `link`) |
 | `GET /api/v1/events/{slug}/wan` | read:rankings | The same for one event; see [wan.md](wan.md) |
 | `GET /api/v1/wan-links` | read:rankings | Configured WAN links with their ports |
+| `POST /api/v1/agent/report` | agent:report | Counters of a host agent; see [agent.md](agent.md) |
 | `GET /api/v1/board` | read:board | Beamer content; `limit` 10/20/50, `event` |
 | `GET /api/v1/board/stream` | read:board | The same as Server-Sent Events after every poll |
 | `GET /api/v1/metrics` | read:rankings | Prometheus metrics |
