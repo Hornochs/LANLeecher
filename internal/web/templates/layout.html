@@ -19,6 +19,7 @@
     <a href="/rankings" {{if eq .Nav "rankings"}}class="active"{{end}}>{{.T "nav.rankings"}}</a>
     <a href="/events" {{if eq .Nav "events"}}class="active"{{end}}>{{.T "nav.events"}}</a>
     <a href="/switches" {{if eq .Nav "switches"}}class="active"{{end}}>{{.T "nav.switches"}}</a>
+    <a href="/maps" {{if eq .Nav "maps"}}class="active"{{end}}>{{.T "nav.maps"}}</a>
     <a href="/merges" {{if eq .Nav "merges"}}class="active"{{end}}>{{.T "nav.merges"}}</a>
     {{if .Board}}<a href="/board" target="_blank" rel="noopener">{{.T "nav.board"}}</a>{{end}}
     {{if .Can "admin"}}<a href="/admin/users" {{if eq .Nav "admin"}}class="active"{{end}}>{{.T "nav.admin"}}</a>{{end}}
@@ -40,7 +41,7 @@
   </div>
 </header>
 {{end}}
-<main class="container">
+<main class="container{{if .Wide}} wide{{end}}">
 {{if .Flash}}<p class="alert alert-ok">{{.Flash}}</p>{{end}}
 {{if .Error}}<p class="alert alert-error">{{.Error}}</p>{{end}}
 {{template "content" .}}

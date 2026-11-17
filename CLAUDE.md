@@ -13,7 +13,8 @@ commit credentials, internal hostnames, IP addresses or paths of a specific inst
 cmd/lanleecher/          CLI (cobra): server, config init, migrate, backup, export, import, user, event, switch, version
 internal/accounting/     Pure delta and attribution logic – no I/O, table-driven tests
 internal/collector/      IF-MIB polling (SNMP), interface classification (physical/LAG/virtual)
-internal/fdb/            MAC → port (Q-BRIDGE, BRIDGE, Cisco community@vlan) and LLDP neighbors
+internal/fdb/            MAC → port (Q-BRIDGE, BRIDGE, Cisco community@vlan), LLDP neighbors, chassis ID, LAG members
+internal/topology/       Links between switches from LLDP/FDB (pure functions)
 internal/resolver/       IP/hostname: snmp-arp, local-neigh, netbios, mdns, llmnr, dns-ptr; merge suggestions
 internal/scheduler/      One poll loop per switch; books deltas into the active event
 internal/store/          SQLite (modernc, no CGO), goose migrations in migrations/sqlite/

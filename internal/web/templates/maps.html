@@ -1,0 +1,88 @@
+{{define "content"}}
+<script src="/static/map.js" defer></script>
+{{$m := .Data.Current}}
+<div class="map-page" id="map-page"{{with $m}} data-state="/maps/{{.ID}}/state.json" data-base="/maps/{{.ID}}"{{end}}{{if .Data.Admin}} data-admin="1"{{end}}
+     data-t-updated="{{.T "maps.updated"}}" data-t-remove="{{.T "maps.remove_node"}}" data-t-hide="{{.T "maps.hide_link"}}"
+     data-t-delete-link="{{.T "maps.delete_link"}}" data-t-show="{{.T "maps.show_link"}}" data-t-open="{{.T "maps.open_switch"}}"
+     data-t-source-lldp="LLDP" data-t-source-fdb="{{.T "maps.source_fdb"}}" data-t-source-manual="{{.T "maps.source_manual"}}"
+     data-t-source-wan="{{.T "maps.source_wan"}}" data-t-open-wan="{{.T "maps.open_wan"}}" data-t-wan-down="{{.T "maps.wan_down"}}" data-t-wan-up="{{.T "maps.wan_up"}}"
+     data-t-archived="{{.T "maps.status_archived"}}"
+     data-t-unknown-port="{{.T "maps.unknown_port"}}" data-t-error="{{.T "maps.load_error"}}" data-t-pick="{{.T "maps.pick"}}">
+  <div class="map-bar">
+    <h1 class="map-title">{{.T "maps.title"}}</h1>
+    {{if .Data.Maps}}
+    <select id="map-select" aria-label="{{.T "maps.title"}}">
+      {{range .Data.Maps}}<option value="/maps/{{.ID}}"{{if and $m (eq .ID $m.ID)}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+    {{end}}
+    <span id="map-updated" class="muted small" role="status"></span>
+    <span class="map-legend small">
+      <span class="lg util-0"></span>&lt;1 % <span class="lg util-2"></span>&lt;25 % <span class="lg util-3"></span>&lt;50 % <span class="lg util-4"></span>&lt;75 % <span class="lg util-5"></span>≥75 %
+      <span class="lg lg-fdb"></span>{{.T "maps.source_fdb"}}
+      <span class="lg lg-manual"></span>{{.T "maps.source_manual"}}
+      <span class="lg lg-wan"></span>{{.T "maps.source_wan"}}
+    </span>
+    {{if .Data.Admin}}
+    {{if $m}}<button type="button" id="map-edit-toggle">{{.T "maps.edit"}}</button>{{end}}
+    <details class="map-new">
+      <summary class="button">{{.T "maps.new"}}</summary>
+      <form method="post" action="/maps" class="inline">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <input name="name" maxlength="80" required placeholder="{{.T "col.name"}}" aria-label="{{.T "col.name"}}">
+        <button type="submit" class="primary">{{.T "maps.create"}}</button>
+      </form>
+    </details>
+    {{end}}
+  </div>
+  {{if $m}}
+  <div class="map-body">
+    <div class="map-stage" id="map-stage">
+      <svg id="map-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="{{$m.Name}}">
+        <g id="map-bg"></g><g id="map-links"></g><g id="map-labels"></g><g id="map-nodes"></g>
+      </svg>
+    </div>
+    {{if .Data.Admin}}
+    <aside id="map-editor" class="map-editor card" hidden>
+      <h3>{{.T "maps.edit"}}</h3>
+      <form method="post" action="/maps/{{$m.ID}}" class="form-grid">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <label>{{.T "col.name"}}<input name="name" value="{{$m.Name}}" maxlength="80" required></label>
+        <label>{{.T "maps.refresh"}}<input name="refresh" type="number" min="5" max="300" value="{{$m.Refresh}}"></label>
+        <label>{{.T "col.sort"}}<input name="sort" type="number" value="{{$m.Sort}}"></label>
+        <div class="actions"><button type="submit">{{.T "action.save"}}</button></div>
+      </form>
+      <form method="post" action="/maps/{{$m.ID}}/background" enctype="multipart/form-data" class="form-grid">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <label class="span-all">{{.T "maps.background"}}<input type="file" name="image" accept="image/png,image/jpeg,image/gif" required></label>
+        <p class="small muted span-all">{{.T "maps.background_hint"}}</p>
+        <div class="actions"><button type="submit">{{.T "maps.upload"}}</button></div>
+      </form>
+      {{if $m.HasBackground}}<form method="post" action="/maps/{{$m.ID}}/background" class="actions">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}"><input type="hidden" name="remove" value="1">
+        <button type="submit" class="danger">{{.T "maps.background_remove"}}</button></form>{{end}}
+      <h4>{{.T "maps.add_device"}}</h4>
+      <div class="map-row"><select id="map-add-device" aria-label="{{.T "maps.add_device"}}"></select><button type="button" id="map-add">{{.T "maps.add"}}</button></div>
+      <p class="small muted">{{.T "maps.edit_hint"}}</p>
+      <div id="map-selection" class="map-selection"></div>
+      <h4>{{.T "maps.manual_link"}}</h4>
+      <form id="map-link-form" class="form-grid">
+        <label>{{.T "maps.device_a"}}<select name="a_switch" data-ports="a_if"></select></label>
+        <label>{{.T "maps.port"}}<select name="a_if"></select></label>
+        <label>{{.T "maps.device_b"}}<select name="b_switch" data-ports="b_if"></select></label>
+        <label>{{.T "maps.port"}}<select name="b_if"></select></label>
+        <div class="actions"><button type="submit">{{.T "maps.add_link"}}</button></div>
+      </form>
+      <h4>{{.T "maps.hidden_links"}}</h4>
+      <ul id="map-hidden" class="small"></ul>
+      <form method="post" action="/maps/{{$m.ID}}/delete" class="actions">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <button type="submit" class="danger" data-confirm="{{.T "maps.delete_confirm"}}">{{.T "maps.delete"}}</button>
+      </form>
+    </aside>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">{{.T "maps.none"}}{{if .Data.Admin}} {{.T "maps.none_admin"}}{{end}}</p>
+  {{end}}
+</div>
+{{end}}
