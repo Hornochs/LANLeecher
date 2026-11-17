@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/lan-dot-party/lanleecher/internal/config"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
@@ -370,17 +371,38 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 	}
 }
 
-// cleanHostname trims whitespace, NUL padding and a trailing dot.
+// maxHostnameRunes is the longest hostname kept (a DNS name has at most 253 characters).
+const maxHostnameRunes = 253
+
+// cleanHostname normalises a name that came from the network: it drops
+// invalid UTF-8, control characters, bidi controls and invisible characters
+// (which could reorder or hide parts of a name in the UI), trims whitespace,
+// NUL padding and a trailing dot, and cuts at maxHostnameRunes runes.
 func cleanHostname(s string) string {
-	s = strings.TrimSpace(strings.TrimRight(s, "\x00 "))
-	s = strings.TrimSuffix(s, ".")
-	if len(s) > 253 {
-		s = s[:253]
-	}
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+	s = strings.ToValidUTF8(s, "")
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || isInvisible(r) {
 			return -1
 		}
 		return r
 	}, s)
+	s = strings.TrimSpace(strings.TrimRight(s, " "))
+	s = strings.TrimSuffix(s, ".")
+	if r := []rune(s); len(r) > maxHostnameRunes {
+		s = string(r[:maxHostnameRunes])
+	}
+	return strings.TrimSpace(s)
+}
+
+// isInvisible reports bidi controls and zero-width or soft-hyphen characters.
+func isInvisible(r rune) bool {
+	switch {
+	case r >= 0x202a && r <= 0x202e, // bidi embeddings and overrides
+		r >= 0x2066 && r <= 0x2069, // bidi isolates
+		r >= 0x200b && r <= 0x200f, // zero-width space/joiners, LRM, RLM
+		r == 0x061c,                // Arabic letter mark
+		r == 0x2060, r == 0xfeff, r == 0x00ad:
+		return true
+	}
+	return false
 }
