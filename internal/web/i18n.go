@@ -177,6 +177,8 @@ var messages = map[string][2]string{
 	"merges.device_b":    {"Gerät B", "Device B"},
 	"merges.reason":      {"Grund", "Reason"},
 	"merges.truncated":   {"Es gibt mehr offene Vorschläge als angezeigt werden (neueste 200). Entscheide über diese, dann erscheinen die übrigen.", "There are more open suggestions than shown (newest 200). Decide on these and the rest will appear."},
+	"merges.no_vendor":   {"Hersteller unbekannt", "vendor unknown"},
+	"merges.no_port":     {"Port unbekannt", "port unknown"},
 	"merges.none":        {"Keine offenen Vorschläge.", "No open suggestions."},
 
 	"event.ports":      {"Traffic pro Port", "Traffic per port"},

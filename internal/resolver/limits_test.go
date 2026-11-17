@@ -135,7 +135,8 @@ func TestSuggestMergesCapPerName(t *testing.T) {
 	}
 	for i := 1; i <= 20; i++ {
 		m := fmt.Sprintf("02:00:00:00:01:%02x", i)
-		if err := db.EnsureMAC(ctx, m, store.Now()); err != nil {
+		// Offline MACs, so the concurrency rule does not interfere.
+		if err := db.EnsureMAC(ctx, m, store.Now().Add(-time.Hour)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := db.RecordHostname(ctx, m, "same", "netbios", store.Now()); err != nil {
@@ -167,5 +168,35 @@ func TestEveryRecoversFromPanic(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatalf("loop stopped after %d iterations", i)
 		}
+	}
+}
+
+func TestSuggestMergesSkipsConcurrentlyOnlineMACs(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestService(t)
+	if _, err := db.StartEvent(ctx, "lan", ""); err != nil {
+		t.Fatal(err)
+	}
+	long := store.Now().Add(-time.Hour)
+	macs := map[string]time.Time{
+		"02:00:00:00:02:01": store.Now(), // the MAC that just got the name
+		"02:00:00:00:02:02": store.Now(), // online now: concurrent, no suggestion
+		"02:00:00:00:02:03": long,        // offline for an hour: plausible adapter switch
+	}
+	for m, at := range macs {
+		if err := db.EnsureMAC(ctx, m, at); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.RecordHostname(ctx, m, "same", "netbios", store.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.suggestMerges(ctx, "02:00:00:00:02:01", "same")
+	list, _, err := db.ListMergeSuggestions(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].MACB != "02:00:00:00:02:03" {
+		t.Fatalf("suggestions = %+v, want only the one with the offline MAC", list)
 	}
 }

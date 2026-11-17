@@ -34,6 +34,9 @@ const (
 	maxReprobePairsPerMAC = 4
 	// maxSuggestionsPerName is the number of merge suggestions created per (MAC, hostname).
 	maxSuggestionsPerName = 5
+	// concurrentWindow is how recent two sightings must be to count as "online at the same
+	// time": about two FDB reads (default 60s each).
+	concurrentWindow = 2 * time.Minute
 	// lastProbeMaxAge and lastProbeMaxSize bound the lastProbe map.
 	lastProbeMaxAge  = time.Hour
 	lastProbeMaxSize = 16384
@@ -350,6 +353,14 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 	for _, other := range others {
 		od, err := s.db.DeviceOfMAC(ctx, other)
 		if err != nil || od == dev {
+			continue
+		}
+		// Two MACs that are online at the same time are two devices. A
+		// hostname shared by both then comes from a clash or from an attendee
+		// copying a name to provoke a wrong merge, so nothing is suggested.
+		// Only the last sighting of each MAC is known, so this covers "both
+		// seen within concurrentWindow", not overlaps further back.
+		if together, err := s.db.OnlineTogether(ctx, mac, other, concurrentWindow); err != nil || together {
 			continue
 		}
 		created, err := s.db.CreateMergeSuggestion(ctx, mac, other, "hostname:"+name, ev.ID)

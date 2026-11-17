@@ -199,6 +199,45 @@ type MergeSuggestion struct {
 	Reason    string
 	Status    string
 	CreatedAt time.Time
+	// Vendor and last known port of both MACs, so an operator can judge the suggestion.
+	VendorA, VendorB string
+	PortA, PortB     string
+}
+
+// OnlineTogether reports whether both MACs were seen on a client port within
+// the window before now. Two MACs that are online at the same time are two
+// separate devices (or one device spoofing another), not one device that
+// switched adapters, so no merge is suggested for them.
+func (db *DB) OnlineTogether(ctx context.Context, macA, macB string, window time.Duration) (bool, error) {
+	var n int
+	err := db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM macs WHERE mac IN (?, ?) AND last_seen >= ?`,
+		macA, macB, unix(Now().Add(-window))).Scan(&n)
+	return n == 2 && macA != macB, err
+}
+
+// latestPorts returns the name of the port each MAC was seen on last.
+func (db *DB) latestPorts(ctx context.Context, macs []string) (map[string]string, error) {
+	out := map[string]string{}
+	if len(macs) == 0 {
+		return out, nil
+	}
+	ph, args := inList(macs)
+	rows, err := db.sql.QueryContext(ctx, `SELECT l.mac, s.name, p.if_name, p.if_descr, p.if_index, p.label
+		FROM mac_locations l JOIN ports p ON p.id = l.port_id JOIN switches s ON s.id = p.switch_id
+		WHERE l.mac IN (`+ph+`) ORDER BY l.last_seen ASC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var mac string
+		var p Port
+		if err := rows.Scan(&mac, &p.SwitchName, &p.IfName, &p.IfDescr, &p.IfIndex, &p.Label); err != nil {
+			return nil, err
+		}
+		out[mac] = p.Name() // the newest row comes last and wins
+	}
+	return out, rows.Err()
 }
 
 // CreateMergeSuggestion stores a suggestion unless one exists for the pair.
@@ -221,7 +260,8 @@ const MergeSuggestionLimit = 200
 // ListMergeSuggestions returns the newest open suggestions (at most MergeSuggestionLimit),
 // optionally for one device. truncated is true if more exist.
 func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) (out []MergeSuggestion, truncated bool, err error) {
-	query := `SELECT s.id, s.mac_a, s.mac_b, a.device_id, b.device_id, s.reason, s.status, s.created_at
+	query := `SELECT s.id, s.mac_a, s.mac_b, a.device_id, b.device_id, s.reason, s.status, s.created_at,
+			a.vendor, b.vendor
 		FROM merge_suggestions s JOIN macs a ON a.mac = s.mac_a JOIN macs b ON b.mac = s.mac_b
 		WHERE s.status = 'open' AND a.device_id <> b.device_id`
 	var args []any
@@ -238,7 +278,8 @@ func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) (out []M
 	for rows.Next() {
 		var m MergeSuggestion
 		var created int64
-		if err := rows.Scan(&m.ID, &m.MACA, &m.MACB, &m.DeviceA, &m.DeviceB, &m.Reason, &m.Status, &created); err != nil {
+		if err := rows.Scan(&m.ID, &m.MACA, &m.MACB, &m.DeviceA, &m.DeviceB, &m.Reason, &m.Status, &created,
+			&m.VendorA, &m.VendorB); err != nil {
 			return nil, false, err
 		}
 		m.CreatedAt = fromUnix(created)
@@ -249,6 +290,17 @@ func (db *DB) ListMergeSuggestions(ctx context.Context, deviceID int64) (out []M
 	}
 	if len(out) > MergeSuggestionLimit {
 		out, truncated = out[:MergeSuggestionLimit], true
+	}
+	macs := make([]string, 0, 2*len(out))
+	for _, m := range out {
+		macs = append(macs, m.MACA, m.MACB)
+	}
+	ports, err := db.latestPorts(ctx, macs)
+	if err != nil {
+		return nil, false, err
+	}
+	for i := range out {
+		out[i].PortA, out[i].PortB = ports[out[i].MACA], ports[out[i].MACB]
 	}
 	return out, truncated, nil
 }

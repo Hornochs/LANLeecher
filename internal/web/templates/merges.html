@@ -8,8 +8,8 @@
   <tbody>
   {{range .Data.Items}}
   <tr>
-    <td><a href="/devices/{{.S.DeviceA}}">{{.NameA}}</a><br><code class="small">{{.S.MACA}}</code></td>
-    <td><a href="/devices/{{.S.DeviceB}}">{{.NameB}}</a><br><code class="small">{{.S.MACB}}</code></td>
+    <td><a href="/devices/{{.S.DeviceA}}">{{.NameA}}</a><br><code class="small">{{.S.MACA}}</code><br><span class="muted small">{{.S.VendorA}}{{if not .S.VendorA}}{{$.T "merges.no_vendor"}}{{end}} · {{if .S.PortA}}{{.S.PortA}}{{else}}{{$.T "merges.no_port"}}{{end}}</span></td>
+    <td><a href="/devices/{{.S.DeviceB}}">{{.NameB}}</a><br><code class="small">{{.S.MACB}}</code><br><span class="muted small">{{.S.VendorB}}{{if not .S.VendorB}}{{$.T "merges.no_vendor"}}{{end}} · {{if .S.PortB}}{{.S.PortB}}{{else}}{{$.T "merges.no_port"}}{{end}}</span></td>
     <td>{{.S.Reason}}</td><td>{{dt .S.CreatedAt}}</td>
     <td>{{if $.Can "operator"}}
       <form method="post" action="/merges/{{.S.ID}}" class="inline">
