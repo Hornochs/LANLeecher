@@ -16,6 +16,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/config"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
+	"github.com/lan-dot-party/lanleecher/internal/safego"
 	"github.com/lan-dot-party/lanleecher/internal/secret"
 	"github.com/lan-dot-party/lanleecher/internal/snmp"
 	"github.com/lan-dot-party/lanleecher/internal/store"
@@ -121,7 +122,8 @@ func (m *Manager) Reload(ctx context.Context) error {
 		pctx, cancel := context.WithCancel(m.ctx)
 		p.cancel = cancel
 		m.pollers[id] = p
-		go p.run(pctx)
+		// poller.run has no per-cycle guard, so a panic restarts the poller after a pause.
+		go safego.Supervise(pctx, m.log.With("switch", s.Name), "poller", p.run)
 	}
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
+	"github.com/lan-dot-party/lanleecher/internal/safego"
 	"github.com/lan-dot-party/lanleecher/internal/secret"
 	"github.com/lan-dot-party/lanleecher/internal/store"
 )
@@ -133,7 +134,10 @@ func (m *Manager) run(ctx context.Context, s *store.DHCPSource) {
 	defer t.Stop()
 	lastErr := ""
 	for {
-		res := m.Poll(ctx, s)
+		var res Result
+		if safego.Do(log, "kea", func() { res = m.Poll(ctx, s) }) {
+			res = Result{Err: "internal error (panic), see log"}
+		}
 		if ctx.Err() != nil {
 			return
 		}

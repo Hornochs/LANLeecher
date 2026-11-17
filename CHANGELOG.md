@@ -39,6 +39,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   more than `polling.uplink_mac_threshold` MACs (default now 32, was 10) count, and only in three
   forwarding-table reads in a row. Existing configs with `uplink_mac_threshold: 10` keep their value.
 
+- Background workers (pollers, resolvers, DHCP polling, planner) log a panic with its stack and keep
+  running instead of ending the process.
 - `/etc/lanleecher` is now mode `0751` (traversable, not listable), so the agent package can read
   its own configuration next to the server's.
 - The certificate checks of the Kea client moved to a shared package (`internal/tlsclient`), which
