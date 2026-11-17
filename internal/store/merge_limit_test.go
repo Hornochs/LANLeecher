@@ -57,7 +57,9 @@ func TestMergeSuggestionShowsPortAndVendor(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return tx.RecordSightings(ctx, sw.ID, []store.Sighting{{MAC: a, PortID: ports[1].ID, VLAN: 1}}, nil, 8, store.Now())
+		_, err = tx.RecordSightings(ctx, sw.ID, []store.Sighting{{MAC: a, PortID: ports[1].ID, VLAN: 1}}, nil,
+			store.SightingOptions{UplinkThreshold: 8}, store.Now())
+		return err
 	})
 	if err != nil {
 		t.Fatal(err)
