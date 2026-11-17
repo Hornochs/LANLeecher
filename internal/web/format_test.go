@@ -31,7 +31,6 @@ func TestLineChartTooltipData(t *testing.T) {
 	}
 }
 
-
 func TestLineChartDetailData(t *testing.T) {
 	buckets := []store.Bucket{{Start: time.Unix(1_700_000_100, 0), BytesDown: 1}}
 	if got := string(lineChart(buckets)); strings.Contains(got, "data-detail") {

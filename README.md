@@ -151,7 +151,7 @@ second variant). Backup, reverse proxy and details:
 
 ## Development quick start
 
-Requires Go 1.24 or newer; Python 3 only for the SNMP simulator used in tests.
+Requires Go 1.26 or newer; Python 3 only for the SNMP simulator used in tests.
 
 ```bash
 git clone https://github.com/lan-dot-party/LANLeecher.git

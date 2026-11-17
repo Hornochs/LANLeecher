@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- Build with Go 1.26.11 (was 1.24.7) and current `golang.org/x/*` modules. `govulncheck` reported
+  about 47 reachable standard-library vulnerabilities (`net/http`, `crypto/x509`) for the old
+  toolchain and reports none now.
+
+### Changed
+
+- Dependencies updated: kin-openapi 0.153, chi 5.5, gosnmp 1.47, goose 3.29, modernc sqlite 1.60
+  (supersedes Dependabot #2).
+- GitHub Actions updated and pinned to commit SHAs (supersedes #3); golangci-lint v2.15.0 with a
+  new `.golangci.yml` (standard linters, gofmt).
+- The container image is based on Alpine 3.24 (supersedes #8).
+
 ### Added
 
 - **Docker Compose examples:** `compose.yaml` (named volume) is revised and `compose.bind.yaml`

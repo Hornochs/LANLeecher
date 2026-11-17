@@ -1,0 +1,13 @@
+# golangci-lint v2 configuration (CI pins the version in .github/workflows/ci.yml).
+version: "2"
+linters:
+  # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  exclusions:
+    # Unchecked errors of Close, Write to response writers and similar
+    # (what golangci-lint v1 excluded by default).
+    presets:
+      - std-error-handling
+formatters:
+  enable:
+    - gofmt

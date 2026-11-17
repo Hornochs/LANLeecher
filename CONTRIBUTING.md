@@ -9,7 +9,7 @@ Before you start, read [docs/architecture.md](docs/architecture.md) and check
 
 ## Development setup
 
-Go 1.24 or newer. Python 3 is only needed for snmpsim, which the integration test uses.
+Go 1.26 or newer. Python 3 is only needed for snmpsim, which the integration test uses.
 
 ```bash
 git clone https://github.com/lan-dot-party/LANLeecher.git

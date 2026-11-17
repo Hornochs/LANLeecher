@@ -48,7 +48,7 @@ func main() {
 	if resp.StatusCode != http.StatusOK {
 		// Errors are application/problem+json with a stable "code".
 		var p struct{ Code, Detail string }
-		json.NewDecoder(resp.Body).Decode(&p)
+		_ = json.NewDecoder(resp.Body).Decode(&p) // best effort: the status alone is enough
 		fail(fmt.Errorf("%s: %s (%s)", resp.Status, p.Detail, p.Code))
 	}
 	var c client
