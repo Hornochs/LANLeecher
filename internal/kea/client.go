@@ -17,10 +17,8 @@ package kea
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -32,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lan-dot-party/lanleecher/internal/tlsclient"
 )
 
 // Kind of API endpoint.
@@ -101,22 +101,7 @@ type Config struct {
 }
 
 // CertError reports a server certificate that is not trusted.
-type CertError struct {
-	// Problem is "untrusted" (no valid chain, hostname mismatch, expired …)
-	// or "changed" (differs from the pinned certificate).
-	Problem string
-	Reason  string
-	Cert    *x509.Certificate
-	Pinned  string
-}
-
-func (e *CertError) Error() string {
-	if e.Problem == "changed" {
-		return "server certificate changed: pinned " + FormatFingerprint(e.Pinned) + ", got " +
-			FormatFingerprint(Fingerprint(e.Cert))
-	}
-	return "server certificate not trusted: " + e.Reason
-}
+type CertError = tlsclient.CertError
 
 // Client talks to one Kea endpoint.
 type Client struct {
@@ -165,13 +150,8 @@ func New(cfg Config) (*Client, error) {
 		cfg.PageLimit = 1000
 	}
 	c := &Client{cfg: cfg, host: u.Hostname()}
-	tlsCfg := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		// Verification happens in verifyConnection, so that pinning and the
-		// "trust this certificate" flow work alongside normal chain checks.
-		InsecureSkipVerify: true, //nolint:gosec // verified in VerifyConnection
-		VerifyConnection:   c.verifyConnection,
-	}
+	tlsCfg := tlsclient.Config(tlsclient.Options{Host: c.host, CAPEM: cfg.CAPEM, PinnedSHA256: cfg.PinnedSHA256,
+		InsecureSkipVerify: cfg.InsecureSkipVerify}, c.observe)
 	if cfg.ClientCertPEM != "" || cfg.ClientKeyPEM != "" {
 		pair, err := tls.X509KeyPair([]byte(cfg.ClientCertPEM), []byte(cfg.ClientKeyPEM))
 		if err != nil {
@@ -196,40 +176,12 @@ func New(cfg Config) (*Client, error) {
 // Close releases idle connections.
 func (c *Client) Close() { c.http.CloseIdleConnections() }
 
-func (c *Client) verifyConnection(cs tls.ConnectionState) error {
+// observe remembers the presented chain of the last handshake.
+func (c *Client) observe(cs tls.ConnectionState) {
 	c.mu.Lock()
 	c.presented = cs.PeerCertificates
 	c.tlsState = &cs
 	c.mu.Unlock()
-	if len(cs.PeerCertificates) == 0 {
-		return &CertError{Problem: "untrusted", Reason: "no certificate presented"}
-	}
-	leaf := cs.PeerCertificates[0]
-	if c.cfg.InsecureSkipVerify {
-		return nil
-	}
-	if c.cfg.PinnedSHA256 != "" {
-		if strings.EqualFold(Fingerprint(leaf), c.cfg.PinnedSHA256) {
-			return nil
-		}
-		return &CertError{Problem: "changed", Cert: leaf, Pinned: c.cfg.PinnedSHA256,
-			Reason: "the certificate differs from the trusted one"}
-	}
-	roots, err := x509.SystemCertPool()
-	if err != nil || roots == nil {
-		roots = x509.NewCertPool()
-	}
-	if c.cfg.CAPEM != "" && !roots.AppendCertsFromPEM([]byte(c.cfg.CAPEM)) {
-		return &CertError{Problem: "untrusted", Cert: leaf, Reason: "the stored CA certificate could not be read"}
-	}
-	inter := x509.NewCertPool()
-	for _, ic := range cs.PeerCertificates[1:] {
-		inter.AddCert(ic)
-	}
-	if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, Intermediates: inter, DNSName: c.host}); err != nil {
-		return &CertError{Problem: "untrusted", Cert: leaf, Reason: err.Error()}
-	}
-	return nil
 }
 
 // Presented returns the certificate chain of the last TLS handshake.
@@ -434,26 +386,10 @@ func (c *Client) Leases(ctx context.Context, family string, fn func(Lease) error
 }
 
 // Fingerprint returns the hex SHA-256 of a certificate's DER encoding.
-func Fingerprint(cert *x509.Certificate) string {
-	if cert == nil {
-		return ""
-	}
-	sum := sha256.Sum256(cert.Raw)
-	return hex.EncodeToString(sum[:])
-}
+func Fingerprint(cert *x509.Certificate) string { return tlsclient.Fingerprint(cert) }
 
 // FormatFingerprint renders a hex fingerprint as AB:CD:… for display.
-func FormatFingerprint(fp string) string {
-	fp = strings.ToUpper(fp)
-	var b strings.Builder
-	for i := 0; i+1 < len(fp); i += 2 {
-		if i > 0 {
-			b.WriteByte(':')
-		}
-		b.WriteString(fp[i : i+2])
-	}
-	return b.String()
-}
+func FormatFingerprint(fp string) string { return tlsclient.FormatFingerprint(fp) }
 
 // EncodePEM returns the PEM encoding of a certificate.
 func EncodePEM(cert *x509.Certificate) string {

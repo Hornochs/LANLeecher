@@ -27,6 +27,8 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
   uplink), labels, and hints for ports that look like uplinks (LLDP neighbor, many MACs).
 - **Network map** with your switches and internet connections on a floor plan, links from LLDP and
   MAC tables, and live traffic colours – see [docs/map.md](docs/map.md).
+- **Host agent** for Linux and Proxmox VE (`lanleecher-agent` package): splits hypervisor ports
+  between their guests – the switch stays authoritative, see [docs/agent.md](docs/agent.md).
 - **Hostnames from Kea DHCP** (Kea 2.x and 3.x, read-only, certificate pinning) and from the
   network itself (NetBIOS, mDNS, LLMNR, DNS), with history per device; vendor names from the IEEE
   registry for MAC addresses.
@@ -141,6 +143,7 @@ second variant). Backup, reverse proxy and details:
 - [docs/kea.md](docs/kea.md) – Kea DHCP 2.x and 3.x: configuration, certificates, troubleshooting
 - [docs/concepts.md](docs/concepts.md) – events, devices, port groups, roles, hiding, directions
 - [docs/export-import.md](docs/export-import.md) – move recordings to another instance
+- [docs/agent.md](docs/agent.md) – host agent for Linux and Proxmox VE: install, encryption, what it reports
 - [docs/api.md](docs/api.md) – authentication, scopes, endpoints, errors, metrics
 - [examples/](examples/) – Discord bot, Grafana, Go and shell clients
 - [docs/architecture.md](docs/architecture.md) – how LANLeecher is built

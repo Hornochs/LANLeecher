@@ -32,9 +32,32 @@ builds:
       - -X github.com/lan-dot-party/lanleecher/pkg/version.Version={{.Version}}
       - -X github.com/lan-dot-party/lanleecher/pkg/version.Commit={{.ShortCommit}}
       - -X github.com/lan-dot-party/lanleecher/pkg/version.BuildDate={{.CommitDate}}
+  # Host agent (Linux, Proxmox VE): own binary, archive and package.
+  - id: lanleecher-agent
+    main: ./cmd/lanleecher-agent
+    binary: lanleecher-agent
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X github.com/lan-dot-party/lanleecher/pkg/version.Version={{.Version}}
+      - -X github.com/lan-dot-party/lanleecher/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/lan-dot-party/lanleecher/pkg/version.BuildDate={{.CommitDate}}
 
 archives:
   - id: default
+    ids: [lanleecher]
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -47,9 +70,25 @@ archives:
       - LICENSE
       - configs/lanleecher.example.yaml
       - packaging/lanleecher.service
+  - id: agent
+    ids: [lanleecher-agent]
+    name_template: >-
+      lanleecher-agent_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+      - docs/agent.md
+      - packaging/agent/agent.conf
+      - packaging/agent/lanleecher-agent.service
 
 nfpms:
   - id: packages
+    ids: [lanleecher]
     package_name: lanleecher
     file_name_template: >-
       {{ .PackageName }}_
@@ -101,6 +140,68 @@ nfpms:
       postinstall: packaging/scripts/postinstall.sh
       preremove: packaging/scripts/preremove.sh
       postremove: packaging/scripts/postremove.sh
+    overrides:
+      deb:
+        dependencies:
+          - ca-certificates
+      rpm:
+        dependencies:
+          - ca-certificates
+      archlinux:
+        dependencies:
+          - ca-certificates
+    archlinux:
+      packager: lan-dot-party
+  - id: agent-packages
+    ids: [lanleecher-agent]
+    package_name: lanleecher-agent
+    file_name_template: >-
+      {{ .PackageName }}_
+      {{- .Version }}_
+      {{- if eq .Arch "arm" }}armv7{{ else }}{{ .Arch }}{{ end }}
+    vendor: lan-dot-party
+    homepage: https://github.com/lan-dot-party/LANLeecher
+    maintainer: lan-dot-party
+    description: |-
+      Host agent for LANLeecher.
+      Reports the traffic per MAC address of a Linux host and of the guests of a
+      Proxmox VE node, so that LANLeecher can split switch ports with several
+      MAC addresses (hypervisors) between them.
+    license: MIT
+    section: net
+    formats:
+      - deb
+      - rpm
+      - archlinux
+      - apk
+    bindir: /usr/bin
+    mtime: "{{ .CommitDate }}"
+    contents:
+      - src: packaging/agent/agent.conf
+        dst: /etc/lanleecher/agent.conf
+        type: config|noreplace
+        file_info:
+          mode: 0640
+      - src: packaging/agent/lanleecher-agent.service
+        dst: /usr/lib/systemd/system/lanleecher-agent.service
+        file_info:
+          mode: 0644
+      - src: packaging/agent/lanleecher-agent.sysusers
+        dst: /usr/lib/sysusers.d/lanleecher-agent.conf
+        file_info:
+          mode: 0644
+      - src: docs/agent.md
+        dst: /usr/share/doc/lanleecher-agent/agent.md
+        file_info:
+          mode: 0644
+      - src: LICENSE
+        dst: /usr/share/licenses/lanleecher-agent/LICENSE
+        file_info:
+          mode: 0644
+    scripts:
+      postinstall: packaging/agent/postinstall.sh
+      preremove: packaging/agent/preremove.sh
+      postremove: packaging/agent/postremove.sh
     overrides:
       deb:
         dependencies:

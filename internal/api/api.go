@@ -54,6 +54,7 @@ func (a *API) routes(metrics bool) chi.Router {
 		r.With(a.require(auth.ScopeReadRankings)).Get("/events/{slug}/wan", a.wanEvent)
 		r.With(a.require(auth.ScopeReadRankings)).Get("/wan", a.wanActive)
 		r.With(a.require(auth.ScopeReadRankings)).Get("/wan-links", a.listWANLinks)
+		r.With(a.require(auth.ScopeAgentReport)).Post("/agent/report", a.agentReport)
 		r.With(a.require(auth.ScopeWriteEvents)).Post("/events", a.startEvent)
 		r.With(a.require(auth.ScopeWriteEvents)).Post("/events/{slug}/stop", a.stopEvent)
 		r.With(a.require(auth.ScopeReadRankings)).Get("/schedules", a.listSchedules)
@@ -91,7 +92,7 @@ func (p principal) has(scope string) bool {
 	if p.token != nil {
 		return p.token.HasScope(scope)
 	}
-	if p.user == nil {
+	if p.user == nil || scope == auth.ScopeAgentReport {
 		return false
 	}
 	if scope == auth.ScopeWriteEvents {

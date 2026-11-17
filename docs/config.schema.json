@@ -120,15 +120,17 @@
       "properties": {
         "hostname_priority": {
           "default": [
+            "agent",
             "dhcp",
             "netbios",
             "mdns",
             "llmnr",
             "dns-ptr"
           ],
-          "description": "Ranks hostname sources when choosing the displayed name; earlier sources win.",
+          "description": "Ranks hostname sources when choosing the displayed name; earlier sources win. \"agent\" is the hostname a host agent reports (for virtual machines and containers: their name in Proxmox).",
           "items": {
             "enum": [
+              "agent",
               "dhcp",
               "netbios",
               "mdns",

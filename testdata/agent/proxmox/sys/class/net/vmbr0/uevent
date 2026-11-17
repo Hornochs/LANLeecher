@@ -1,0 +1,2 @@
+INTERFACE=vmbr0
+DEVTYPE=bridge

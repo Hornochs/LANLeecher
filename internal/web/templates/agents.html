@@ -1,0 +1,73 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "admin.agents"}}</h1>
+<section class="card">
+  <p>{{.T "agents.help"}}</p>
+  <p class="muted small">{{.T "agents.docs"}} <code>docs/agent.md</code></p>
+</section>
+{{with .Data.NewConfig}}
+<section class="card notice">
+  <h3>{{$.T "agents.created"}}</h3>
+  <p>{{$.T "tokens.once"}}</p>
+  <pre class="token"><code id="new-agent-config">{{.}}</code></pre>
+  <button type="button" data-copy="new-agent-config">{{$.T "tokens.copy"}}</button>
+  {{if $.Data.TLSNote}}<p class="muted small">{{$.T "agents.pin_note"}}</p>{{end}}
+</section>
+{{end}}
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>{{.T "col.hostname"}}</th><th>{{.T "agents.mode"}}</th><th>{{.T "agents.version"}}</th><th>{{.T "agents.last_report"}}</th><th>{{.T "agents.remote_ip"}}</th><th>{{.T "agents.interfaces"}}</th><th>{{.T "col.status"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Agents}}
+  <tr{{if eq .State "revoked"}} class="hidden-row"{{end}}>
+    <td>{{.Token.Name}}</td>
+    <td>{{.Hostname}}</td>
+    <td>{{.Mode}}</td>
+    <td>{{.Version}}</td>
+    <td>{{if .LastReport}}{{ago (deref .LastReport)}}{{else}}{{$.T "agents.never"}}{{end}}</td>
+    <td>{{.RemoteIP}}</td>
+    <td>{{.Interfaces}}</td>
+    <td>{{if eq .State "active"}}<span class="badge">{{$.T "agents.state.active"}}</span>{{else if eq .State "stale"}}<span class="badge badge-muted">{{$.T "agents.state.stale"}}</span>{{else}}<span class="badge badge-muted">{{$.T "tokens.revoked"}}</span>{{end}}</td>
+    <td>{{if ne .State "revoked"}}
+      <form method="post" action="/admin/agents/{{.Token.ID}}/revoke" data-confirm="{{$.T "agents.revoke_confirm"}}">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button type="submit" class="danger">{{$.T "tokens.revoke"}}</button>
+      </form>{{end}}</td>
+  </tr>
+  {{if .MACs}}
+  <tr><td colspan="9">
+    <details><summary>{{$.T "agents.macs"}} ({{len .MACs}})</summary>
+    <table>
+      <thead><tr><th>MAC</th><th>{{$.T "agents.interface"}}</th><th>{{$.T "agents.kind"}}</th><th>{{$.T "col.name"}}</th><th>{{$.T "col.status"}}</th><th>{{$.T "col.last_seen"}}</th></tr></thead>
+      <tbody>
+      {{range .MACs}}
+      <tr>
+        <td><code>{{.MAC}}</code></td>
+        <td>{{.IfName}}</td>
+        <td>{{$.T (print "agents.kind." .Kind)}}</td>
+        <td>{{.Name}}{{if .VMID}} <span class="muted">({{.VMID}})</span>{{end}}</td>
+        <td>{{$.T (print "agents.status." .Status)}}{{if .PortName}} <span class="muted small">{{$.T "agents.switch_port"}}: {{.PortName}}</span>{{end}}</td>
+        <td>{{ago .LastSeen}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </details>
+  </td></tr>
+  {{end}}
+  {{else}}
+  <tr><td colspan="9" class="muted">{{$.T "agents.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+<section class="card">
+  <h3>{{.T "agents.add"}}</h3>
+  <form method="post" action="/admin/agents" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>{{.T "col.name"}}<input name="name" required maxlength="60" placeholder="proxmox-1"></label>
+    <label>{{.T "tokens.expires_days"}}<input type="number" name="expires_days" min="0" max="3650" value="0"></label>
+    <label>{{.T "tokens.allowed_ips"}}<input name="allowed_ips" placeholder="10.0.0.0/24 192.168.1.5"></label>
+    <button type="submit" class="primary">{{.T "agents.add"}}</button>
+  </form>
+</section>
+{{end}}

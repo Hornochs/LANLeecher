@@ -89,8 +89,9 @@ type Resolver struct {
 	// discovery off.
 	Order []string `yaml:"order" enum:"snmp-arp,local-neigh,netbios,mdns,llmnr,dns-ptr"`
 	// HostnamePriority ranks hostname sources when choosing the displayed name;
-	// earlier sources win.
-	HostnamePriority []string `yaml:"hostname_priority" enum:"dhcp,netbios,mdns,llmnr,dns-ptr"`
+	// earlier sources win. "agent" is the hostname a host agent reports (for
+	// virtual machines and containers: their name in Proxmox).
+	HostnamePriority []string `yaml:"hostname_priority" enum:"agent,dhcp,netbios,mdns,llmnr,dns-ptr"`
 	// ProbeInterval is how often NetBIOS, mDNS, LLMNR and DNS are asked again for
 	// the name of each active IP. New IPs are probed immediately.
 	ProbeInterval time.Duration `yaml:"probe_interval"`
@@ -181,7 +182,7 @@ func (c *Config) applyDefaults() {
 		c.Resolver.Order = []string{"snmp-arp", "local-neigh", "netbios", "mdns", "dns-ptr"}
 	}
 	if c.Resolver.HostnamePriority == nil {
-		c.Resolver.HostnamePriority = []string{"dhcp", "netbios", "mdns", "llmnr", "dns-ptr"}
+		c.Resolver.HostnamePriority = []string{"agent", "dhcp", "netbios", "mdns", "llmnr", "dns-ptr"}
 	}
 	if c.Resolver.ProbeInterval == 0 {
 		c.Resolver.ProbeInterval = 10 * time.Minute
@@ -287,7 +288,7 @@ polling:
 
 resolver:
   order: [snmp-arp, local-neigh, netbios, mdns, dns-ptr]
-  hostname_priority: [dhcp, netbios, mdns, llmnr, dns-ptr]
+  hostname_priority: [agent, dhcp, netbios, mdns, llmnr, dns-ptr]
   probe_interval: 10m
   probe_rate: 20              # name queries per second
   probe_timeout: 1s

@@ -15,6 +15,7 @@ import (
 
 	"github.com/lan-dot-party/lanleecher"
 
+	"github.com/lan-dot-party/lanleecher/internal/agentpool"
 	"github.com/lan-dot-party/lanleecher/internal/api"
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/board"
@@ -52,6 +53,9 @@ var serverCmd = &cobra.Command{
 		a := app.New(e.cfg, e.db, e.key, log)
 		a.Resolver = resolver.New(e.db, e.cfg.Resolver, log)
 		a.Sched = scheduler.New(e.db, e.key, e.cfg, a.Resolver, log)
+		// Agent deltas wait at most three counter polls for their port.
+		a.Agents = agentpool.New(agentpool.Options{PendingTTL: 3 * e.cfg.Polling.Interval})
+		a.Sched.Agents = a.Agents
 		a.Board = board.New(e.db, a.Sched.Throughput)
 		a.DHCP = kea.NewManager(e.db, e.key, a.Resolver, log)
 		a.Sched.OnPoll = a.Board.Notify

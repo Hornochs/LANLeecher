@@ -51,7 +51,7 @@ An annotated example is in [configs/lanleecher.example.yaml](../configs/lanleech
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `resolver.order` | []string | `[snmp-arp, local-neigh, netbios, mdns, dns-ptr]` | Lists the enabled resolvers. An empty list turns IP and hostname discovery off. Allowed: `snmp-arp`, `local-neigh`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
-| `resolver.hostname_priority` | []string | `[dhcp, netbios, mdns, llmnr, dns-ptr]` | Ranks hostname sources when choosing the displayed name; earlier sources win. Allowed: `dhcp`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
+| `resolver.hostname_priority` | []string | `[agent, dhcp, netbios, mdns, llmnr, dns-ptr]` | Ranks hostname sources when choosing the displayed name; earlier sources win. "agent" is the hostname a host agent reports (for virtual machines and containers: their name in Proxmox). Allowed: `agent`, `dhcp`, `netbios`, `mdns`, `llmnr`, `dns-ptr`. |
 | `resolver.probe_interval` | duration | `10m` | How often NetBIOS, mDNS, LLMNR and DNS are asked again for the name of each active IP. New IPs are probed immediately. |
 | `resolver.probe_rate` | int | `20` | The maximum number of name queries per second. |
 | `resolver.probe_timeout` | duration | `1s` | The timeout of a single NetBIOS, mDNS or LLMNR query. |

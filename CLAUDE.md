@@ -28,7 +28,10 @@ packaging/               Package config, systemd unit, sysusers, install scripts
 tools/gendocs/           Generates docs/configuration.md, docs/config.schema.json, docs/llms-full.txt
 tools/genoui/            Refreshes internal/oui/oui.txt.gz from the IEEE registries
 tools/keasim/            Kea API simulator (Kea 2.x Control Agent and 3.x sockets)
-internal/kea/            Kea DHCP client, certificate pinning, lease polling
+internal/kea/            Kea DHCP client, lease polling
+internal/tlsclient/      Server certificate checks (system roots, CA, pinning) for Kea and the agent
+internal/agentpool/      In-memory counters of host agents → deltas per MAC for splitting ports
+internal/agent/          Host agent (cmd/lanleecher-agent): config, HTTPS client, collect/ (Linux, Proxmox VE)
 internal/oui/            MAC vendor lookup (embedded IEEE data)
 docs/, examples/         User docs, ADRs, API guide; runnable API examples
 ```
@@ -41,6 +44,9 @@ docs/, examples/         User docs, ADRs, API guide; runnable API examples
 - **WAN direction:** on a WAN port `ifHCInOctets` is the internet *download*. Stored port traffic stays
   in client view; the mapping to the internet view exists only in `accounting.WANDirection`.
 - **Uplinks and WAN ports** are counted on the port only, never attributed to a MAC.
+- **Host agents only split.** Agent counters split the delta of a port with several MACs
+  (`accounting.Split`, shares + rest = port delta), only for MACs the FDB shows on that port. They
+  never add traffic, never create MACs or devices.
 - **Hiding** is filtered at query time (join on `ports`/`devices`), never written into totals.
 - **Credentials** (communities, v3 passwords) are stored AES-GCM encrypted in the database only – never
   in logs, the audit log, API responses or pre-filled forms.

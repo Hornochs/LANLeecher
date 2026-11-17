@@ -21,6 +21,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/lan-dot-party/lanleecher/internal/accounting"
+	"github.com/lan-dot-party/lanleecher/internal/agentpool"
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/auth"
 	"github.com/lan-dot-party/lanleecher/internal/board"
@@ -35,6 +36,7 @@ type fixture struct {
 	handler   http.Handler
 	full      string // token with every scope
 	boardOnly string // token with read:board
+	agent     string // agent token (agent:report only)
 	pastSlug  string
 	liveSlug  string
 }
@@ -152,7 +154,13 @@ func newFixture(t *testing.T) *fixture {
 	a.Board = board.New(db, a.Sched.Throughput)
 	r := chi.NewRouter()
 	r.Mount("/api", New(a).Routes())
-	return &fixture{handler: r, full: token(auth.AllScopes...), boardOnly: token(auth.ScopeReadBoard),
+	agentPlain := auth.NewAPIToken()
+	if err := db.CreateAgent(ctx, &store.APIToken{Name: "pve1", TokenHash: auth.HashToken(agentPlain), Prefix: agentPlain[:10],
+		Scopes: []string{auth.ScopeAgentReport}}); err != nil {
+		t.Fatal(err)
+	}
+	a.Agents = agentpool.New(agentpool.Options{})
+	return &fixture{handler: r, full: token(auth.AllScopes...), boardOnly: token(auth.ScopeReadBoard), agent: agentPlain,
 		pastSlug: past.Slug, liveSlug: live.Slug}
 }
 
@@ -200,6 +208,10 @@ func TestResponsesMatchSpec(t *testing.T) {
 		{"GET", "/api/v1/wan?event=all", f.full, "", 400},
 		{"GET", "/api/v1/wan", f.boardOnly, "", 403},
 		{"GET", "/api/v1/wan-links", f.full, "", 200},
+		{"POST", "/api/v1/agent/report", f.agent, `{"agent_version": "1.0", "hostname": "pve1", "mode": "proxmox", "interfaces": [{"mac": "bc:24:11:00:00:01", "ifname": "tap101i0", "kind": "vm", "name": "web", "vmid": 101, "down_bytes": 100, "up_bytes": 50, "ips": ["192.0.2.50", "fe80::1"]}, {"mac": "01:00:5e:00:00:01", "ifname": "x", "kind": "vm", "down_bytes": 1, "up_bytes": 1}]}`, 200},
+		{"POST", "/api/v1/agent/report", f.agent, `{"hostname": 1}`, 400},
+		{"POST", "/api/v1/agent/report", f.full, `{"agent_version": "1", "hostname": "h", "mode": "linux", "interfaces": []}`, 403},
+		{"GET", "/api/v1/wan-links", f.agent, "", 403},
 		{"GET", "/api/v1/clients/search?q=desk", f.full, "", 200},
 		{"GET", "/api/v1/clients/search?q=d", f.full, "", 400},
 		{"GET", "/api/v1/clients/search?q=desk", f.boardOnly, "", 403},
