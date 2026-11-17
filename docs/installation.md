@@ -1,7 +1,8 @@
 # Installation
 
 LANLeecher is a single binary with a built-in SQLite database. It needs no database server and no
-agent on the clients – only SNMP access (UDP 161) to the switches.
+agent on the clients – only SNMP access (UDP 161) to the switches. An optional
+[host agent](agent.md) for hypervisors (Linux, Proxmox VE) splits ports with several guests.
 
 ## Requirements
 
@@ -13,6 +14,11 @@ agent on the clients – only SNMP access (UDP 161) to the switches.
   LLMNR UDP 5355). Multicast mDNS and the local neighbor table only cover the host's own segment.
 
 ## Packages
+
+The easiest way is the signed lan.party package repository: set it up once as described on
+**https://repo.lan.party**, then `apt install lanleecher` (or `dnf`, `pacman`, `apk`), and new
+releases arrive with the normal system updates. The host agent is the package `lanleecher-agent`
+in the same repository.
 
 Every [release](https://github.com/lan-dot-party/LANLeecher/releases) carries packages for amd64,
 arm64 and armv7, plus `SHA256SUMS` and a build provenance attestation.
@@ -54,6 +60,9 @@ sudo systemctl enable --now lanleecher
 ```
 
 Then open `public_url`, log in and continue with the [LAN party guide](lan-party-guide.md).
+
+The release also carries the host agent packages `lanleecher-agent_<version>_<arch>.<format>`;
+installation and configuration are in [agent.md](agent.md).
 
 ## Docker
 

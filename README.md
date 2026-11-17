@@ -29,6 +29,10 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
   MAC tables, and live traffic colours – see [docs/map.md](docs/map.md).
 - **Host agent** for Linux and Proxmox VE (`lanleecher-agent` package): splits hypervisor ports
   between their guests – the switch stays authoritative, see [docs/agent.md](docs/agent.md).
+- **Internet connections:** named WAN links (e.g. fibre and an LTE backup) with their own traffic,
+  charts and utilisation tiles, reported separately – see [docs/wan.md](docs/wan.md).
+- **Export and import** of switches, devices and events with their traffic into another instance
+  (without credentials) – see [docs/export-import.md](docs/export-import.md).
 - **Hostnames from Kea DHCP** (Kea 2.x and 3.x, read-only, certificate pinning) and from the
   network itself (NetBIOS, mDNS, LLMNR, DNS), with history per device; vendor names from the IEEE
   registry for MAC addresses.
@@ -143,6 +147,8 @@ second variant). Backup, reverse proxy and details:
 - [docs/kea.md](docs/kea.md) – Kea DHCP 2.x and 3.x: configuration, certificates, troubleshooting
 - [docs/concepts.md](docs/concepts.md) – events, devices, port groups, roles, hiding, directions
 - [docs/export-import.md](docs/export-import.md) – move recordings to another instance
+- [docs/wan.md](docs/wan.md) – internet connections (WAN links): ports, bandwidth, API
+- [docs/map.md](docs/map.md) – network map: background image, links from LLDP and MAC tables, live traffic
 - [docs/agent.md](docs/agent.md) – host agent for Linux and Proxmox VE: install, encryption, what it reports
 - [docs/api.md](docs/api.md) – authentication, scopes, endpoints, errors, metrics
 - [examples/](examples/) – Discord bot, Grafana, Go and shell clients

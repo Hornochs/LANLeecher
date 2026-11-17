@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-17
+
 ### Security
 
 - **MAC flooding:** a port with more than `polling.max_port_macs` (512) MACs in one forwarding-table
@@ -96,17 +98,17 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Admin → Export/Import read it into another instance, with a preview, a backup and merging of
   known MACs. Imported switches are *archived*: no credentials, never polled, shown with a badge.
   See [docs/export-import.md](docs/export-import.md).
+- **Package repository:** every release is published to the signed lan.party package repository
+  https://repo.lan.party (apt, dnf, pacman, apk), so updates arrive with the normal system updates.
 - **Docker Compose examples:** `compose.yaml` (named volume) is revised and `compose.bind.yaml`
   (data in `./data`, owned by UID 100 / GID 101) is new; both are tested in CI. The Docker section
   of [installation.md](docs/installation.md#docker-compose) explains when to use which, backup
   and the reverse proxy setup.
-- **Planned events:** under Events → Planned events, an event can be entered with its first and
-  last day (optionally with start and end times). LANLeecher starts it at the start and stops it at
-  the end by itself, to the second, and records both in the audit log as actor `schedule`. Planned
-  events can be started early, deleted, and must not overlap; the dashboard shows the next one
-  while no event runs. Also available as `lanleecher event schedule|schedules|unschedule` and as
-  `GET/POST /api/v1/schedules` and `DELETE /api/v1/schedules/{id}`. Dates use the server's time
-  zone (`TZ`).
+
+## [1.3.0] - 2026-11-07
+
+### Added
+
 - **Switches without a forwarding table** are recognised: after two successful but empty FDB
   reads in a row, the switch list marks the switch with "no MAC table" and the log says once that
   its traffic is counted per port but not attributed to clients.
@@ -114,6 +116,18 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   because the switch offers no forwarding table over SNMP. See
   [switch-compatibility.md](docs/switch-compatibility.md). Simulated in the integration tests
   (`testdata/snmpsim/gwn7721.snmprec`).
+
+## [1.2.0] - 2026-10-30
+
+### Added
+
+- **Planned events:** under Events → Planned events, an event can be entered with its first and
+  last day (optionally with start and end times). LANLeecher starts it at the start and stops it at
+  the end by itself, to the second, and records both in the audit log as actor `schedule`. Planned
+  events can be started early, deleted, and must not overlap; the dashboard shows the next one
+  while no event runs. Also available as `lanleecher event schedule|schedules|unschedule` and as
+  `GET/POST /api/v1/schedules` and `DELETE /api/v1/schedules/{id}`. Dates use the server's time
+  zone (`TZ`).
 
 ## [1.1.0] - 2026-10-25
 
@@ -195,7 +209,10 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
 
-[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/lan-dot-party/LANLeecher/releases/tag/v1.0.0

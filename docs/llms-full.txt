@@ -108,7 +108,11 @@ confirmation is withdrawn with **Check again** or the port is made an uplink.
 
 - A **port group** is the shared ranking entry of a port with several clients. It lists all MACs
   seen on the port during the event and is named after the port's **display name** (e.g. "Table 7"),
-  which is set in the port list.
+  which is set in the port list. If a [host agent](agent.md) runs on the machine behind the port
+  (for example a Proxmox VE node), its counters split the port's traffic between the MACs it
+  reports, as long as the switch sees them on that port. Those MACs get their own ranking entries;
+  the port group keeps only the rest. Traffic booked before the agent started stays with the port
+  group.
 - **Unassigned** traffic was seen on a client port while no MAC was learned there (e.g. right after
   link-up). It stays on the port and is never credited to a MAC that shows up later.
 
