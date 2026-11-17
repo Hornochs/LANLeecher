@@ -10,6 +10,8 @@ info:
     - Bytes are integers, throughput is bit/s, timestamps are RFC 3339 in UTC.
     - Field names carry the direction: `bytes_down` (to the client), `bytes_up` (from the client).
       Internally `bytes_down` comes from ifHCOutOctets and `bytes_up` from ifHCInOctets of the switch port.
+    - Internet connections (WAN links) use the internet's point of view instead: `internet_down_bytes` is what
+      the LAN downloaded (ifHCInOctets of the WAN port, which faces the router).
     - MAC addresses are accepted in any notation and returned as `aa:bb:cc:dd:ee:ff`.
     - Errors use RFC 9457 `application/problem+json` with a stable `code`.
     - Authentication: `Authorization: Bearer llk_...`. Tokens are created by admins in the web UI.
@@ -25,6 +27,7 @@ tags:
   - name: rankings
   - name: events
   - name: clients
+  - name: wan
   - name: board
   - name: operations
 
@@ -189,6 +192,92 @@ paths:
                 properties:
                   event: {$ref: "#/components/schemas/Event"}
         "409": {$ref: "#/components/responses/Conflict"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/events/{slug}/wan:
+    get:
+      tags: [wan]
+      operationId: getEventWAN
+      summary: Internet traffic of an event per WAN link
+      description: |
+        Scope `read:rankings`. Ports count by their current role and WAN link, so a WAN port configured
+        after an event still reports that event's traffic. Rates are only set while the event runs.
+      parameters:
+        - {name: slug, in: path, required: true, schema: {type: string}}
+        - name: series
+          in: query
+          description: Include 5-minute buckets per WAN link.
+          schema: {type: boolean, default: false}
+        - name: link
+          in: query
+          description: Only this WAN link (ID or name, case-insensitive).
+          schema: {type: string}
+      responses:
+        "200":
+          description: WAN traffic
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/WANReport"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/wan:
+    get:
+      tags: [wan]
+      operationId: getWAN
+      summary: Internet traffic of the running event per WAN link
+      description: Scope `read:rankings`. Same as `/api/v1/events/{slug}/wan` for the running event (or `?event=<slug>`).
+      parameters:
+        - name: event
+          in: query
+          description: Event slug or `active` (default).
+          schema: {type: string, default: active}
+        - name: series
+          in: query
+          description: Include 5-minute buckets per WAN link.
+          schema: {type: boolean, default: false}
+        - name: link
+          in: query
+          description: Only this WAN link (ID or name, case-insensitive).
+          schema: {type: string}
+      responses:
+        "200":
+          description: WAN traffic
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/WANReport"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        "500": {$ref: "#/components/responses/InternalError"}
+
+  /api/v1/wan-links:
+    get:
+      tags: [wan]
+      operationId: listWANLinks
+      summary: Configured WAN links and their ports
+      description: Scope `read:rankings`. WAN links are managed by admins in the web UI.
+      responses:
+        "200":
+          description: WAN links
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [links]
+                properties:
+                  links:
+                    type: array
+                    items: {$ref: "#/components/schemas/WANLink"}
         "401": {$ref: "#/components/responses/Unauthorized"}
         "403": {$ref: "#/components/responses/Forbidden"}
         "429": {$ref: "#/components/responses/TooManyRequests"}
@@ -459,7 +548,10 @@ paths:
                         switch: {type: string}
                         if_name: {type: string}
                         label: {type: string}
-                        role: {type: string, enum: [client, multi-client, server, uplink]}
+                        role: {type: string, enum: [client, multi-client, server, uplink, wan]}
+                        wan_link_id:
+                          type: [integer, "null"]
+                          description: WAN link of a port with the role `wan` (see `/api/v1/wan-links`).
                         hidden: {type: boolean}
                         bytes_down: {type: integer}
                         bytes_up: {type: integer}
@@ -624,7 +716,73 @@ components:
           description: Stable error code.
           enum: [not_found, invalid_token, ip_not_allowed, rate_limited, csrf, unauthorized, insufficient_scope,
                  no_active_event, event_not_found, invalid_parameter, invalid_body, event_not_active, invalid_mac,
-                 mac_not_found, invalid_ip, invalid_schedule, schedule_overlap, schedule_not_found, internal]
+                 mac_not_found, invalid_ip, invalid_schedule, schedule_overlap, schedule_not_found, wan_link_not_found,
+                 internal]
+    WANPortRef:
+      type: object
+      required: [id, switch, if_name, label]
+      properties:
+        id: {type: integer}
+        switch: {type: string}
+        if_name: {type: string}
+        label: {type: string}
+    WANLink:
+      type: object
+      required: [id, name, sort, down_mbps, up_mbps, notes, ports]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        sort: {type: integer}
+        down_mbps: {type: integer, description: Booked download bandwidth, 0 = unknown.}
+        up_mbps: {type: integer, description: Booked upload bandwidth, 0 = unknown.}
+        notes: {type: string}
+        ports:
+          type: array
+          items: {$ref: "#/components/schemas/WANPortRef"}
+    WANTraffic:
+      type: object
+      required: [internet_down_bytes, internet_up_bytes, down_bps, up_bps]
+      properties:
+        internet_down_bytes: {type: integer, description: Downloaded by the LAN from the internet.}
+        internet_up_bytes: {type: integer, description: Uploaded by the LAN to the internet.}
+        down_bps: {type: [number, "null"], description: Current download rate; null when not running.}
+        up_bps: {type: [number, "null"], description: Current upload rate; null when not running.}
+    WANReport:
+      type: object
+      required: [event, links, total]
+      properties:
+        event: {$ref: "#/components/schemas/Event"}
+        total: {$ref: "#/components/schemas/WANTraffic"}
+        links:
+          type: array
+          items:
+            allOf:
+              - {$ref: "#/components/schemas/WANTraffic"}
+              - type: object
+                required: [id, name, down_mbps, up_mbps, util_down, util_up, ports]
+                properties:
+                  id: {type: integer}
+                  name: {type: string}
+                  down_mbps: {type: integer}
+                  up_mbps: {type: integer}
+                  util_down: {type: [number, "null"], description: Share of the booked download bandwidth (0–1).}
+                  util_up: {type: [number, "null"], description: Share of the booked upload bandwidth (0–1).}
+                  ports:
+                    type: array
+                    items:
+                      allOf:
+                        - {$ref: "#/components/schemas/WANPortRef"}
+                        - {$ref: "#/components/schemas/WANTraffic"}
+                  series:
+                    type: array
+                    description: 5-minute buckets, only with `series=true`.
+                    items:
+                      type: object
+                      required: [start, internet_down_bytes, internet_up_bytes]
+                      properties:
+                        start: {type: string, format: date-time}
+                        internet_down_bytes: {type: integer}
+                        internet_up_bytes: {type: integer}
     Event:
       type: object
       required: [name, slug, started_at, ended_at, active, notes]

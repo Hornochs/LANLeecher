@@ -38,7 +38,7 @@ type Totals struct {
 	Clients   int   `json:"clients"`
 }
 
-// Throughput is the current rate of all non-uplink ports in bit/s.
+// Throughput is the current rate of all ports except uplink and WAN ports in bit/s.
 type Throughput struct {
 	DownBps int64 `json:"down_bps"`
 	UpBps   int64 `json:"up_bps"`

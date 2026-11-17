@@ -24,6 +24,11 @@
   <div class="bulk">
     <strong>{{$.T "ports.bulk"}}:</strong>
     <label class="inline">{{$.T "col.role"}} {{template "role_select" .BulkRole}}</label>
+    <label class="inline wan-select">{{$.T "ports.wan_link"}} <select name="wan_link" title="{{$.T "ports.wan_link_hint"}}">
+      <option value="">{{$.T "ports.wan_link_none"}}</option>
+      {{range .WANLinks}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+    </select></label>
+    {{if not .WANLinks}}<span class="muted small wan-select">{{$.T "ports.wan_no_links"}} {{if $.Can "admin"}}<a href="/admin/wan">{{$.T "ports.wan_no_links_create"}}</a>{{end}}</span>{{end}}
     <label class="inline">{{$.T "ports.visibility"}} <select name="bulk_hidden">
       <option value="">{{$.T "ports.keep"}}</option>
       <option value="1">{{$.T "ports.hide"}}</option>
@@ -60,12 +65,18 @@
         {{end}}
         {{if .Port.LLDPNeighbor}}<br><span class="muted small">LLDP: {{.Port.LLDPNeighbor}}</span>{{end}}</td>
       <td class="nowrap">{{if .Port.OperUp}}<span class="dot dot-ok"></span> {{if .Port.SpeedMbps}}{{.Port.SpeedMbps}} M{{else}}up{{end}}{{else}}<span class="dot dot-off"></span> down{{end}}</td>
-      <td>{{if $.Can "operator"}}{{template "role_select" .RoleSelect}}{{else}}<span class="badge role-{{.Port.Role}}">{{$.T (print "role." .Port.Role)}}</span>{{end}}</td>
+      <td>{{if $.Can "operator"}}{{template "role_select" .RoleSelect}}
+        <select name="wan_link_{{.Port.ID}}" class="wan-select" title="{{$.T "ports.wan_link_hint"}}" aria-label="{{$.T "ports.wan_link"}} {{.Port.ShortName}}">
+          <option value="">{{$.T "ports.wan_link_none"}}</option>
+          {{$cur := .Port.WANLinkID}}{{range $.Data.WANLinks}}<option value="{{.ID}}"{{if eq .ID $cur}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+        {{else}}<span class="badge role-{{.Port.Role}}">{{$.T (print "role." .Port.Role)}}</span>{{end}}
+        {{if .Port.WANLinkID}}<br><span class="badge badge-wan">{{index $.Data.WANByID .Port.WANLinkID}}</span>{{end}}</td>
       <td>{{if $.Can "operator"}}<input name="label_{{.Port.ID}}" value="{{.Port.Label}}" maxlength="60" class="narrow"{{if .IsGroup}} placeholder="{{$.T "ports.label_placeholder"}}"{{end}} aria-label="{{$.T "ports.label"}} {{.Port.ShortName}}">{{else}}{{.Port.Label}}{{end}}
         {{if .IsGroup}}<br><span class="muted small" title="{{$.T "ports.group_hint"}}">{{$.T "type.port_group"}}{{if not .Port.Label}} · {{$.T "ports.group_unnamed"}}{{end}}</span>{{end}}</td>
       <td>{{if $.Can "operator"}}<input type="checkbox" name="hidden_{{.Port.ID}}" value="1"{{if .Port.Hidden}} checked{{end}} aria-label="{{$.T "ports.hide"}}">{{else if .Port.Hidden}}✓{{end}}</td>
       <td class="small">
-        {{if eq (print .Port.Role) "uplink"}}<span class="muted">{{.Port.MACCount}} MACs</span>
+        {{if or (eq (print .Port.Role) "uplink") (eq (print .Port.Role) "wan")}}<span class="muted">{{.Port.MACCount}} MACs</span>
         {{else}}{{range .MACs}}<div><a href="/devices/{{.DeviceID}}">{{if .Hostname}}{{.Hostname}}{{else}}<code>{{.MAC}}</code>{{end}}</a>{{if .IP}} <span class="muted">{{.IP}}</span>{{end}}{{if and .Vendor (not .Hostname)}} <span class="muted">{{.Vendor}}</span>{{end}}</div>{{else}}<span class="muted">–</span>{{end}}
         {{end}}
       </td>

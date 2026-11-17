@@ -18,10 +18,14 @@ const (
 	RoleServer Role = "server"
 	// RoleUplink is a trunk to another switch or router; never attributed to MACs.
 	RoleUplink Role = "uplink"
+	// RoleWAN is a port towards an internet uplink (router, modem). Like an
+	// uplink it is counted on the port only; the port belongs to a named WAN
+	// link so that several internet uplinks can be reported separately.
+	RoleWAN Role = "wan"
 )
 
 // Roles lists all valid roles in UI order.
-var Roles = []Role{RoleClient, RoleMultiClient, RoleServer, RoleUplink}
+var Roles = []Role{RoleClient, RoleMultiClient, RoleServer, RoleUplink, RoleWAN}
 
 // Valid reports whether r is a known role.
 func (r Role) Valid() bool {
@@ -35,8 +39,13 @@ func (r Role) Valid() bool {
 
 // HiddenByDefault reports whether ports with this role start hidden in rankings.
 func (r Role) HiddenByDefault() bool {
-	return r == RoleServer || r == RoleUplink
+	return r == RoleServer || r.IsTransit()
 }
+
+// IsTransit reports whether traffic on the port belongs to many clients
+// (uplink or WAN): it is counted on the port only, never attributed to MACs,
+// and MACs seen there are not recorded as client locations.
+func (r Role) IsTransit() bool { return r == RoleUplink || r == RoleWAN }
 
 // TargetKind says where a port delta is booked.
 type TargetKind string
@@ -63,7 +72,7 @@ type Target struct {
 
 // Attribute decides who is credited for traffic on a port.
 //
-//   - uplink: nobody (port total only), or traffic behind it is counted twice.
+//   - uplink or wan: nobody (port total only), or traffic behind it is counted twice.
 //   - client/server with exactly one MAC: that MAC.
 //   - client/server with several MACs, or multi-client: the port group.
 //   - no MAC learned: unassigned on the port. It is never credited to a MAC
@@ -71,7 +80,7 @@ type Target struct {
 //
 // Every delta is additionally booked on the port itself, whatever the target.
 func Attribute(role Role, macs []macaddr.MAC) Target {
-	if role == RoleUplink {
+	if role.IsTransit() {
 		return Target{Kind: TargetNone}
 	}
 	uniq := dedupe(macs)

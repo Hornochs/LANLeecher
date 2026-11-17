@@ -164,7 +164,27 @@ func (m *Manager) PortRates(switchID int64) map[int64]Rate {
 	return p.rates()
 }
 
-// Throughput sums the live rates of all non-uplink ports.
+// LivePortRates returns the current rates of all ports of all switches by
+// port ID, leaving out readings older than three poll intervals.
+func (m *Manager) LivePortRates() map[int64]Rate {
+	m.mu.Lock()
+	ps := make([]*poller, 0, len(m.pollers))
+	for _, p := range m.pollers {
+		ps = append(ps, p)
+	}
+	m.mu.Unlock()
+	out := map[int64]Rate{}
+	for _, p := range ps {
+		for id, r := range p.rates() {
+			if time.Since(r.At) <= 3*p.interval {
+				out[id] = r
+			}
+		}
+	}
+	return out
+}
+
+// Throughput sums the live rates of all ports that are not uplinks or WAN ports.
 func (m *Manager) Throughput() (downBps, upBps float64) {
 	m.mu.Lock()
 	ps := make([]*poller, 0, len(m.pollers))
@@ -174,7 +194,7 @@ func (m *Manager) Throughput() (downBps, upBps float64) {
 	m.mu.Unlock()
 	for _, p := range ps {
 		for _, r := range p.rates() {
-			if r.Role == accounting.RoleUplink || time.Since(r.At) > 3*p.interval {
+			if r.Role.IsTransit() || time.Since(r.At) > 3*p.interval {
 				continue
 			}
 			downBps += r.DownBps

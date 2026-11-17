@@ -43,7 +43,7 @@ type Server struct {
 var pageFiles = []string{
 	"login", "dashboard", "rankings", "search", "device", "merges", "events", "event", "compare",
 	"switches", "switch_form", "ports", "users", "tokens", "audit", "settings", "account", "board", "error",
-	"dhcp_list", "dhcp_form", "dhcp_source", "transfer",
+	"dhcp_list", "dhcp_form", "dhcp_source", "transfer", "wan",
 }
 
 // New parses all templates.
@@ -121,6 +121,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/admin/tokens", s.tokens)
 			r.Post("/admin/tokens", s.tokenCreate)
 			r.Post("/admin/tokens/{id}/revoke", s.tokenRevoke)
+			r.Get("/admin/wan", s.wanPage)
+			r.Post("/admin/wan", s.wanCreate)
+			r.Post("/admin/wan/{id}", s.wanUpdate)
+			r.Post("/admin/wan/{id}/delete", s.wanDelete)
 			r.Get("/admin/transfer", s.transferPage)
 			r.Get("/admin/transfer/export", s.transferExport)
 			r.Post("/admin/transfer/import", s.transferImport)

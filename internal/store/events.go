@@ -175,7 +175,7 @@ func (db *DB) EventSummary(ctx context.Context, eventID int64) (EventSummary, er
 	var s EventSummary
 	err := db.sql.QueryRowContext(ctx, `SELECT COALESCE(SUM(t.bytes_down), 0), COALESCE(SUM(t.bytes_up), 0)
 		FROM port_traffic_totals t JOIN ports p ON p.id = t.port_id
-		WHERE t.event_id = ? AND p.role <> 'uplink'`, eventID).Scan(&s.BytesDown, &s.BytesUp)
+		WHERE t.event_id = ? AND p.role NOT IN ('uplink', 'wan')`, eventID).Scan(&s.BytesDown, &s.BytesUp)
 	if err != nil {
 		return s, err
 	}

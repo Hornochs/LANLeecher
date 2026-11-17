@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lan-dot-party/lanleecher/internal/accounting"
 	"github.com/lan-dot-party/lanleecher/internal/store"
 	"github.com/lan-dot-party/lanleecher/internal/transfer"
 )
@@ -99,9 +100,34 @@ func seedTransfer(t *testing.T, db *store.DB, swName, host string) {
 	if _, err := db.StopEvent(ctx); err != nil {
 		t.Fatal(err)
 	}
+	link := &store.WANLink{Name: "Fiber", DownMbps: 1000}
+	if err := db.CreateWANLink(ctx, link); err != nil {
+		t.Fatal(err)
+	}
+	ports, err := db.ListPorts(ctx, sw.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wan := accounting.RoleWAN
+	for _, p := range ports {
+		if p.IfIndex == 24 {
+			if err := db.UpdatePorts(ctx, []int64{p.ID}, store.PortSettings{Role: &wan, WANLinkID: &link.ID}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 }
 
 func itoa(v int64) string { return strconv.FormatInt(v, 10) }
+
+func mustEvent(t *testing.T, db *store.DB, slug string) int64 {
+	t.Helper()
+	ev, err := db.EventBySlug(context.Background(), slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ev.ID
+}
 
 func roundtrip(t *testing.T, doc *transfer.Doc) *transfer.Doc {
 	t.Helper()
@@ -195,6 +221,24 @@ func TestExportImportRoundtrip(t *testing.T) {
 	}
 	if uplink != 3*99999 {
 		t.Fatalf("uplink total %d", uplink)
+	}
+
+	// The WAN link and its traffic (with buckets) come along.
+	wantWAN, err := src.WANTraffic(ctx, mustEvent(t, src, "party-2026"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotWAN, err := dst.WANTraffic(ctx, ev.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gotWAN) != 1 || gotWAN[0].Link.Name != "Fiber" || gotWAN[0].Link.DownMbps != 1000 ||
+		gotWAN[0].InternetDown != wantWAN[0].InternetDown || gotWAN[0].InternetDown != 3*99999 ||
+		len(gotWAN[0].Series) != len(wantWAN[0].Series) || len(gotWAN[0].Series) != 3 {
+		t.Fatalf("WAN after import: %+v, want %+v", gotWAN, wantWAN)
+	}
+	if rep.WANLinksNew != 1 {
+		t.Fatalf("WAN links created: %d", rep.WANLinksNew)
 	}
 
 	// Exporting the import again gives the same content.

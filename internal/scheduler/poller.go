@@ -323,7 +323,7 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		}
 		macs[e.IfIndex] = append(macs[e.IfIndex], e.MAC)
 		sightings = append(sightings, store.Sighting{MAC: e.MAC.String(), PortID: port.ID, VLAN: e.VLAN,
-			Uplink: port.Role == accounting.RoleUplink})
+			Uplink: port.Role.IsTransit()})
 	}
 	// Warn only when the number changes, not on every read.
 	if unknown != p.lastUnknown {

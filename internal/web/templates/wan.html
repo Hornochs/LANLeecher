@@ -1,0 +1,52 @@
+{{define "content"}}
+{{template "admin_nav" .}}
+<h1>{{.T "wan.title"}}</h1>
+<p class="muted">{{.T "wan.help"}}</p>
+<section class="card">
+<table>
+  <thead><tr><th>{{.T "col.name"}}</th><th>{{.T "wan.booked"}}</th><th>{{.T "wan.ports"}}</th><th>{{.T "wan.notes"}}</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Links}}
+  <tr>
+    <td><strong>{{.Name}}</strong></td>
+    <td class="nowrap">{{if or .DownMbps .UpMbps}}{{.DownMbps}} ↓ / {{.UpMbps}} ↑ Mbit/s{{else}}–{{end}}</td>
+    <td class="small">{{range .Ports}}<div><a href="/switches/{{.SwitchID}}#port-{{.ID}}">{{.SwitchName}} {{.ShortName}}</a>{{if .Label}} <span class="muted">({{.Label}})</span>{{end}}</div>{{else}}<span class="muted">{{$.T "wan.no_ports"}}</span>{{end}}</td>
+    <td class="small">{{.Notes}}</td>
+    <td>
+      <form method="post" action="/admin/wan/{{.ID}}/delete" data-confirm="{{$.T "wan.delete_confirm"}}">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}"><button type="submit" class="danger">{{$.T "action.delete"}}</button>
+      </form>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="5">
+      <form method="post" action="/admin/wan/{{.ID}}" class="form-grid">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <label>{{$.T "col.name"}}<input name="name" value="{{.Name}}" required maxlength="80"></label>
+        <label>{{$.T "wan.sort"}}<input type="number" name="sort" value="{{.Sort}}"></label>
+        <label>{{$.T "wan.down_mbps"}}<input type="number" name="down_mbps" min="0" value="{{.DownMbps}}"></label>
+        <label>{{$.T "wan.up_mbps"}}<input type="number" name="up_mbps" min="0" value="{{.UpMbps}}"></label>
+        <label>{{$.T "wan.notes"}}<input name="notes" value="{{.Notes}}" maxlength="4096"></label>
+        <button type="submit">{{$.T "action.save"}}</button>
+      </form>
+    </td>
+  </tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">{{$.T "wan.none"}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+<section class="card">
+  <h3>{{.T "wan.create"}}</h3>
+  <form method="post" action="/admin/wan" class="form-grid">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>{{.T "col.name"}}<input name="name" required maxlength="80" placeholder="Fiber"></label>
+    <label>{{.T "wan.sort"}}<input type="number" name="sort" value="0"></label>
+    <label>{{.T "wan.down_mbps"}}<input type="number" name="down_mbps" min="0" value="0"></label>
+    <label>{{.T "wan.up_mbps"}}<input type="number" name="up_mbps" min="0" value="0"></label>
+    <label>{{.T "wan.notes"}}<input name="notes" maxlength="4096"></label>
+    <button type="submit" class="primary">{{.T "wan.create"}}</button>
+  </form>
+</section>
+{{end}}

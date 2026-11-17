@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lan-dot-party/lanleecher/internal/oui"
@@ -77,23 +78,42 @@ func (db *DB) Export(ctx context.Context, opts ExportOptions) (*transfer.Doc, Ex
 		return nil, stats, err
 	}
 
+	wanName := map[int64]string{}
+	if err := queryEach(ctx, conn, `SELECT id, name, sort, down_mbps, up_mbps, notes FROM wan_links ORDER BY sort, name`, nil,
+		func(r *sql.Rows) error {
+			var id int64
+			var l transfer.WANLink
+			if err := r.Scan(&id, &l.Name, &l.Sort, &l.DownMbps, &l.UpMbps, &l.Notes); err != nil {
+				return err
+			}
+			wanName[id] = l.Name
+			doc.WANLinks = append(doc.WANLinks, l)
+			return nil
+		}); err != nil {
+		return nil, stats, err
+	}
+
 	portRef := map[int64]transfer.PortRef{}
 	rows, err = conn.QueryContext(ctx, `SELECT id, switch_id, if_index, if_name, if_alias, if_descr, if_type, physical,
-		speed_mbps, role, label, hidden_in_rankings, uplink_dismissed, last_seen FROM ports ORDER BY switch_id, if_index`)
+		speed_mbps, role, label, hidden_in_rankings, uplink_dismissed, COALESCE(wan_link_id, 0), last_seen
+		FROM ports ORDER BY switch_id, if_index`)
 	if err != nil {
 		return nil, stats, err
 	}
 	for rows.Next() {
-		var id, swID int64
+		var id, swID, wanID int64
 		var p transfer.Port
 		if err := rows.Scan(&id, &swID, &p.IfIndex, &p.IfName, &p.IfAlias, &p.IfDescr, &p.IfType, &p.Physical,
-			&p.SpeedMbps, &p.Role, &p.Label, &p.Hidden, &p.UplinkDismissed, &p.LastSeen); err != nil {
+			&p.SpeedMbps, &p.Role, &p.Label, &p.Hidden, &p.UplinkDismissed, &wanID, &p.LastSeen); err != nil {
 			rows.Close()
 			return nil, stats, err
 		}
 		i, ok := swIndex[swID]
 		if !ok || p.IfIndex <= 0 {
 			continue
+		}
+		if p.Role == "wan" {
+			p.WANLink = wanName[wanID]
 		}
 		doc.Switches[i].Ports = append(doc.Switches[i].Ports, p)
 		portRef[id] = transfer.PortRef{Switch: switchName[swID], IfIndex: p.IfIndex}
@@ -173,6 +193,25 @@ func (db *DB) Export(ctx context.Context, opts ExportOptions) (*transfer.Doc, Ex
 			}
 			t.Port = ref
 			e.ev.PortTotals = append(e.ev.PortTotals, t)
+			return nil
+		}); err != nil {
+			return nil, stats, err
+		}
+
+		if err := queryEach(ctx, conn, `SELECT port_id, bucket_start, bytes_down, bytes_up FROM port_traffic_buckets
+			WHERE event_id = ? ORDER BY bucket_start, port_id`, []any{e.id}, func(r *sql.Rows) error {
+			var pid int64
+			var b transfer.PortBucket
+			if err := r.Scan(&pid, &b.Start, &b.Down, &b.Up); err != nil {
+				return err
+			}
+			ref, ok := portRef[pid]
+			if !ok {
+				stats.SkippedRows++
+				return nil
+			}
+			b.Port = ref
+			e.ev.PortBuckets = append(e.ev.PortBuckets, b)
 			return nil
 		}); err != nil {
 			return nil, stats, err
@@ -425,12 +464,14 @@ const (
 
 // ImportReport describes what an import did (or would do).
 type ImportReport struct {
-	DryRun     bool
-	Switches   []SwitchImport
-	DevicesNew int
-	MACsNew    int
-	MACsMerged int
-	Events     []EventImport
+	DryRun   bool
+	Switches []SwitchImport
+	// WANLinksNew counts WAN links created (others matched by name).
+	WANLinksNew int
+	DevicesNew  int
+	MACsNew     int
+	MACsMerged  int
+	Events      []EventImport
 	// TrafficRows is the number of total and bucket rows written.
 	TrafficRows int
 }
@@ -500,6 +541,27 @@ func (tx *Tx) importDoc(ctx context.Context, doc *transfer.Doc, opts ImportOptio
 	t := tx.tx
 	rep := &ImportReport{}
 
+	// WAN links: matched by name (case-insensitive), otherwise created.
+	wanID := map[string]int64{}
+	for _, l := range doc.WANLinks {
+		var id int64
+		err := t.QueryRowContext(ctx, `SELECT id FROM wan_links WHERE name = ?`, l.Name).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			ins, err := t.ExecContext(ctx, `INSERT INTO wan_links (name, sort, down_mbps, up_mbps, notes, created_at)
+				VALUES (?, ?, ?, ?, ?, ?)`, l.Name, l.Sort, l.DownMbps, l.UpMbps, l.Notes, now)
+			if err != nil {
+				return nil, fmt.Errorf("WAN link %q: %w", l.Name, err)
+			}
+			if id, err = ins.LastInsertId(); err != nil {
+				return nil, err
+			}
+			rep.WANLinksNew++
+		} else if err != nil {
+			return nil, err
+		}
+		wanID[strings.ToLower(l.Name)] = id
+	}
+
 	// Switches: map onto an existing switch with the same name and host,
 	// otherwise create an archived one.
 	portID := map[transfer.PortRef]int64{}
@@ -541,11 +603,19 @@ func (tx *Tx) importDoc(ctx context.Context, doc *transfer.Doc, opts ImportOptio
 			var pid int64
 			err := t.QueryRowContext(ctx, `SELECT id FROM ports WHERE switch_id = ? AND if_index = ?`, id, p.IfIndex).Scan(&pid)
 			if errors.Is(err, sql.ErrNoRows) {
+				role, link := p.Role, any(nil)
+				if role == "wan" {
+					if wid, ok := wanID[strings.ToLower(p.WANLink)]; ok {
+						link = wid
+					} else {
+						role = "uplink" // a WAN port needs a WAN link
+					}
+				}
 				ins, err := t.ExecContext(ctx, `INSERT INTO ports (switch_id, if_index, if_name, if_alias, if_descr, if_type,
-					physical, speed_mbps, role, label, hidden_in_rankings, uplink_dismissed, last_seen)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					physical, speed_mbps, role, label, hidden_in_rankings, uplink_dismissed, wan_link_id, last_seen)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					id, p.IfIndex, p.IfName, p.IfAlias, p.IfDescr, p.IfType, boolInt(p.Physical), int64(p.SpeedMbps),
-					p.Role, p.Label, boolInt(p.Hidden), boolInt(p.UplinkDismissed), p.LastSeen)
+					role, p.Label, boolInt(p.Hidden), boolInt(p.UplinkDismissed), link, p.LastSeen)
 				if err != nil {
 					return nil, fmt.Errorf("switch %q port %d: %w", s.Name, p.IfIndex, err)
 				}
@@ -705,6 +775,16 @@ func (tx *Tx) importDoc(ctx context.Context, doc *transfer.Doc, opts ImportOptio
 				eventID, portID[pt.Port], pt.Down, pt.Up, pt.UpdatedAt); err != nil {
 				return nil, err
 			}
+		}
+		for _, b := range e.PortBuckets {
+			start := time.Unix(b.Start, 0).UTC().Truncate(BucketSize).Unix()
+			if _, err := t.ExecContext(ctx, `INSERT INTO port_traffic_buckets (event_id, port_id, bucket_start, bytes_down, bytes_up)
+				VALUES (?, ?, ?, ?, ?) ON CONFLICT (event_id, port_id, bucket_start) DO UPDATE SET
+				bytes_down = bytes_down + excluded.bytes_down, bytes_up = bytes_up + excluded.bytes_up`,
+				eventID, portID[b.Port], start, b.Down, b.Up); err != nil {
+				return nil, err
+			}
+			rep.TrafficRows++
 		}
 		groupID := map[string]int64{}
 		for _, g := range e.PortGroups {

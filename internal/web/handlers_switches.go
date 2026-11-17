@@ -40,7 +40,7 @@ func (s *Server) switches(w http.ResponseWriter, r *http.Request) {
 			if p.Physical {
 				row.Ports++
 			}
-			if p.UplinkSuspect && p.Role != accounting.RoleUplink {
+			if p.UplinkSuspect && !p.Role.IsTransit() {
 				row.Suspects++
 			}
 		}
@@ -374,7 +374,16 @@ func (s *Server) ports(w http.ResponseWriter, r *http.Request) {
 		VirtualCount int
 		Suspects     int
 		BulkRole     roleSelect
-	}{Switch: sw, ShowAll: showAll, BulkRole: roleSelect{P: p, Name: "bulk_role", Roles: accounting.Roles, Keep: true}}
+		WANLinks     []*store.WANLink
+		WANByID      map[int64]string
+	}{Switch: sw, WANByID: map[int64]string{}, ShowAll: showAll, BulkRole: roleSelect{P: p, Name: "bulk_role", Roles: accounting.Roles, Keep: true}}
+	if data.WANLinks, err = s.DB.ListWANLinks(ctx); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	for _, l := range data.WANLinks {
+		data.WANByID[l.ID] = l.Name
+	}
 	for _, port := range ports {
 		if !port.Physical {
 			data.VirtualCount++
@@ -382,12 +391,12 @@ func (s *Server) ports(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
-		if port.UplinkSuspect && port.Role != accounting.RoleUplink {
+		if port.UplinkSuspect && !port.Role.IsTransit() {
 			data.Suspects++
 		}
 		row := portRow{Port: port, Traffic: traffic[port.ID],
 			RoleSelect: roleSelect{P: p, Name: "role_" + strconv.FormatInt(port.ID, 10), Roles: accounting.Roles, Current: port.Role}}
-		if port.Role != accounting.RoleUplink {
+		if !port.Role.IsTransit() {
 			for _, mac := range current[port.ID] {
 				if info, ok := infos[mac]; ok {
 					row.MACs = append(row.MACs, info)
@@ -395,7 +404,7 @@ func (s *Server) ports(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		row.IsGroup = port.Role == accounting.RoleMultiClient ||
-			(port.Role != accounting.RoleUplink && len(row.MACs) > 1)
+			(!port.Role.IsTransit() && len(row.MACs) > 1)
 		if rate, ok := rates[port.ID]; ok {
 			row.Rate, row.HasRate = rate, true
 		}
@@ -435,6 +444,7 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 		var settings store.PortSettings
 		if role := accounting.Role(r.PostFormValue("bulk_role")); role.Valid() {
 			settings.Role = &role
+			settings.WANLinkID = wanLinkParam(r.PostFormValue("wan_link"))
 		}
 		switch r.PostFormValue("bulk_hidden") {
 		case "1":
@@ -453,9 +463,13 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			settings.UplinkDismissed = &f
 		}
 		settings.UplinkThreshold = s.Cfg.Polling.UplinkMACThreshold
+		if len(ids) > 0 && settings.Role != nil && *settings.Role == accounting.RoleWAN && settings.WANLinkID == nil {
+			redirect(w, r, backURL(sw, r, "err=wan_link_required"))
+			return
+		}
 		if len(ids) > 0 && (settings.Role != nil || settings.Hidden != nil || settings.UplinkDismissed != nil) {
 			if err := s.DB.UpdatePorts(r.Context(), ids, settings); err != nil {
-				s.fail(w, r, err)
+				s.portsUpdateFail(w, r, sw, err)
 				return
 			}
 			changed = len(ids)
@@ -475,15 +489,25 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			if len(label) > 60 {
 				label = label[:60]
 			}
-			if role.Valid() && role != port.Role {
+			linkID := wanLinkParam(r.PostFormValue("wan_link_" + key))
+			switch {
+			case role.Valid() && role != port.Role:
 				settings.Role = &role
+				settings.WANLinkID = linkID
 				// A role change applies the role's default visibility unless
 				// the checkbox was changed at the same time.
 				if hidden != port.Hidden {
 					settings.Hidden = &hidden
 				}
-			} else if hidden != port.Hidden {
+			case role == accounting.RoleWAN && port.Role == accounting.RoleWAN && linkID != nil && *linkID != port.WANLinkID:
+				// Only the link changed: keep the visibility as posted.
+				settings.Role, settings.WANLinkID, settings.Hidden = &role, linkID, &hidden
+			case hidden != port.Hidden:
 				settings.Hidden = &hidden
+			}
+			if settings.Role != nil && *settings.Role == accounting.RoleWAN && settings.WANLinkID == nil {
+				redirect(w, r, backURL(sw, r, "err=wan_link_required"))
+				return
 			}
 			if label != port.Label {
 				settings.Label = &label
@@ -502,7 +526,7 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if err := s.DB.UpdatePorts(r.Context(), []int64{id}, settings); err != nil {
-				s.fail(w, r, err)
+				s.portsUpdateFail(w, r, sw, err)
 				return
 			}
 			changed++
@@ -516,11 +540,33 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			s.Audit(r, "ports.uplink_"+action, sw.Name, byID[n].ShortName())
 		}
 	}
-	back := "/switches/" + strconv.FormatInt(sw.ID, 10) + "?ok=saved"
+	redirect(w, r, backURL(sw, r, "ok=saved"))
+}
+
+// backURL is the ports page with a flash query (and the "all" toggle kept).
+func backURL(sw *store.Switch, r *http.Request, flash string) string {
+	back := "/switches/" + strconv.FormatInt(sw.ID, 10) + "?" + flash
 	if r.PostFormValue("all") == "1" {
 		back += "&all=1"
 	}
-	redirect(w, r, back)
+	return back
+}
+
+func (s *Server) portsUpdateFail(w http.ResponseWriter, r *http.Request, sw *store.Switch, err error) {
+	if errors.Is(err, store.ErrWANLinkRequired) {
+		redirect(w, r, backURL(sw, r, "err=wan_link_required"))
+		return
+	}
+	s.fail(w, r, err)
+}
+
+// wanLinkParam parses a posted WAN link ID; nil means none was chosen.
+func wanLinkParam(v string) *int64 {
+	id, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || id <= 0 {
+		return nil
+	}
+	return &id
 }
 
 func htmlEscape(s string) string {
