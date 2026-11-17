@@ -51,6 +51,7 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	m.ctx = ctx
 	m.mu.Unlock()
+	go m.runRetention(ctx)
 	return m.Reload(ctx)
 }
 

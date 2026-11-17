@@ -27,7 +27,9 @@ polling:
   fdb_interval: 60s           # forwarding table (MAC -> port)
   timeout: 3s
   retries: 1
-  uplink_mac_threshold: 10    # more MACs than this: "probably uplink"
+  uplink_mac_threshold: 32    # more MACs than this (or a switch as LLDP neighbor) in 3 reads in a row: "probably uplink"
+  max_port_macs: 512          # a port with more MACs creates no new devices (MAC flooding)
+  idle_mac_retention: 24h     # delete MACs without any traffic that were not seen for this long
 
 resolver:
   order: [snmp-arp, local-neigh, netbios, mdns, dns-ptr]

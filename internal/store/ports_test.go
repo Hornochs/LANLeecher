@@ -53,7 +53,8 @@ func TestUplinkDismissed(t *testing.T) {
 				return err
 			}
 			portID = ports[1].ID
-			return tx.RecordSightings(ctx, sw.ID, sightings(portID), nil, threshold, store.Now())
+			_, err = tx.RecordSightings(ctx, sw.ID, sightings(portID), nil, store.SightingOptions{UplinkThreshold: threshold}, store.Now())
+			return err
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -66,13 +67,18 @@ func TestUplinkDismissed(t *testing.T) {
 	}
 	set := func(s store.PortSettings) {
 		t.Helper()
-		s.UplinkThreshold = threshold
 		if err := db.UpdatePorts(ctx, []int64{portID}, s); err != nil {
 			t.Fatal(err)
 		}
 	}
 	yes, no := true, false
 
+	// The hint needs store.UplinkConfirmReads reads in a row.
+	for i := 1; i < store.UplinkConfirmReads; i++ {
+		if p := poll(); p.UplinkSuspect {
+			t.Fatalf("hint after %d read(s), want it only after %d", i, store.UplinkConfirmReads)
+		}
+	}
 	if p := poll(); !p.UplinkSuspect || p.UplinkDismissed {
 		t.Fatalf("new port: suspect=%v dismissed=%v, want true/false", p.UplinkSuspect, p.UplinkDismissed)
 	}
@@ -117,8 +123,8 @@ func TestWindowTotals(t *testing.T) {
 			return err
 		}
 		p := ports[1].ID
-		if err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{{MAC: "02:00:00:00:00:01", PortID: p, VLAN: 1}},
-			nil, 10, t0); err != nil {
+		if _, err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{{MAC: "02:00:00:00:00:01", PortID: p, VLAN: 1}},
+			nil, store.SightingOptions{UplinkThreshold: 10}, t0); err != nil {
 			return err
 		}
 		for _, b := range []struct {

@@ -39,11 +39,11 @@ func seedTransfer(t *testing.T, db *store.DB, swName, host string) {
 		if err != nil {
 			return err
 		}
-		if err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{
+		if _, err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{
 			{MAC: "02:00:00:00:00:01", PortID: ports[1].ID, VLAN: 1},
 			{MAC: "02:00:00:00:00:02", PortID: ports[2].ID, VLAN: 1},
 			{MAC: "02:00:00:00:00:03", PortID: ports[2].ID, VLAN: 1},
-		}, nil, 8, at); err != nil {
+		}, nil, store.SightingOptions{UplinkThreshold: 8}, at); err != nil {
 			return err
 		}
 		for i := 0; i < 3; i++ {

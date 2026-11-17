@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,11 +25,33 @@ type Sighting struct {
 	Uplink bool
 }
 
-// RecordSightings stores MAC locations from a forwarding-table read. Unknown
-// MACs get their own device. It also refreshes mac_count, the LLDP neighbor
-// and the uplink heuristic of the switch's ports.
-func (tx *Tx) RecordSightings(ctx context.Context, switchID int64, sightings []Sighting, lldp map[int64]string,
-	uplinkThreshold int, at time.Time) error {
+// UplinkConfirmReads is how many forwarding-table reads in a row a port must
+// look like an uplink before it gets the "probably uplink" hint.
+const UplinkConfirmReads = 3
+
+// PortNeighbor is what LLDP reports on a port.
+type PortNeighbor struct {
+	Name string
+	// Bridge: a neighbour announces bridge capability (a switch). Only those
+	// count towards the uplink hint; PCs, phones and hypervisors often send
+	// LLDP too.
+	Bridge bool
+}
+
+// SightingOptions are the limits for RecordSightings.
+type SightingOptions struct {
+	// UplinkThreshold: more MACs than this on a port count towards the uplink
+	// hint (polling.uplink_mac_threshold).
+	UplinkThreshold int
+	// MaxPortMACs: a port with more MACs than this in one read creates no new
+	// devices (MAC flooding); known MACs are still updated. 0 means no limit.
+	MaxPortMACs int
+}
+
+// RecordSightings stores where MACs were seen, updates the MAC count of every
+// port and the uplink hint. It returns the ports that exceeded MaxPortMACs.
+func (tx *Tx) RecordSightings(ctx context.Context, switchID int64, sightings []Sighting, lldp map[int64]PortNeighbor,
+	opt SightingOptions, at time.Time) (flooded []int64, err error) {
 	now := unix(at)
 	counts := map[int64]map[string]bool{}
 	for _, s := range sightings {
@@ -36,59 +59,105 @@ func (tx *Tx) RecordSightings(ctx context.Context, switchID int64, sightings []S
 			counts[s.PortID] = map[string]bool{}
 		}
 		counts[s.PortID][s.MAC] = true
+	}
+	over := map[int64]bool{}
+	if opt.MaxPortMACs > 0 {
+		for portID, macs := range counts {
+			if len(macs) > opt.MaxPortMACs {
+				over[portID] = true
+				flooded = append(flooded, portID)
+			}
+		}
+		sort.Slice(flooded, func(i, j int) bool { return flooded[i] < flooded[j] })
+	}
+	for _, s := range sightings {
 		if s.Uplink {
 			continue
 		}
-		if err := tx.ensureMAC(ctx, s.MAC, at); err != nil {
-			return err
+		known, err := tx.ensureMAC(ctx, s.MAC, at, !over[s.PortID])
+		if err != nil {
+			return nil, err
+		}
+		if !known {
+			continue // flooded port: no new MACs
 		}
 		if _, err := tx.tx.ExecContext(ctx, `INSERT INTO mac_locations (mac, port_id, vlan, first_seen, last_seen)
 			VALUES (?, ?, ?, ?, ?) ON CONFLICT (mac, port_id) DO UPDATE SET last_seen = excluded.last_seen, vlan = excluded.vlan`,
 			s.MAC, s.PortID, s.VLAN, now, now); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET mac_count = 0, uplink_suspect = 0, lldp_neighbor = ''
-		WHERE switch_id = ?`, switchID); err != nil {
-		return err
+	if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET mac_count = 0, lldp_neighbor = '' WHERE switch_id = ?`,
+		switchID); err != nil {
+		return nil, err
 	}
 	for portID, macs := range counts {
-		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET mac_count = ?, uplink_suspect = ? WHERE id = ?`,
-			len(macs), boolInt(len(macs) > uplinkThreshold), portID); err != nil {
-			return err
+		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET mac_count = ? WHERE id = ?`, len(macs), portID); err != nil {
+			return nil, err
 		}
 	}
-	for portID, neighbor := range lldp {
-		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET lldp_neighbor = ?, uplink_suspect = 1 WHERE id = ?`,
-			neighbor, portID); err != nil {
-			return err
+	// Ports that look like an uplink in this read: a bridge as LLDP neighbour
+	// or more MACs than the threshold. The streak counts such reads in a row.
+	looks := map[int64]bool{}
+	for portID, macs := range counts {
+		if len(macs) > opt.UplinkThreshold {
+			looks[portID] = true
 		}
+	}
+	for portID, n := range lldp {
+		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET lldp_neighbor = ? WHERE id = ?`, n.Name, portID); err != nil {
+			return nil, err
+		}
+		if n.Bridge {
+			looks[portID] = true
+		}
+	}
+	if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_streak = -uplink_streak - 1 WHERE switch_id = ?`,
+		switchID); err != nil {
+		return nil, err
+	}
+	for portID := range looks {
+		// Undo the marker above and count this read.
+		if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_streak = -uplink_streak WHERE id = ?`, portID); err != nil {
+			return nil, err
+		}
+	}
+	// Ports that did not look like an uplink are still negative: reset them.
+	if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_streak = 0 WHERE switch_id = ? AND uplink_streak < 0`,
+		switchID); err != nil {
+		return nil, err
 	}
 	// Ports already confirmed as uplink, or as not an uplink, need no hint.
-	_, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_suspect = 0
-		WHERE switch_id = ? AND (role IN ('uplink', 'wan') OR uplink_dismissed = 1)`, switchID)
-	return err
+	_, err = tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_suspect = CASE
+		WHEN role NOT IN ('uplink', 'wan') AND uplink_dismissed = 0 AND uplink_streak >= ? THEN 1 ELSE 0 END
+		WHERE switch_id = ?`, UplinkConfirmReads, switchID)
+	return flooded, err
 }
 
-func (tx *Tx) ensureMAC(ctx context.Context, mac string, at time.Time) error {
+// ensureMAC updates last_seen of a known MAC. An unknown MAC gets a new device
+// when create is set. It reports whether the MAC exists afterwards.
+func (tx *Tx) ensureMAC(ctx context.Context, mac string, at time.Time, create bool) (bool, error) {
 	res, err := tx.tx.ExecContext(ctx, `UPDATE macs SET last_seen = ? WHERE mac = ?`, unix(at), mac)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if n, _ := res.RowsAffected(); n > 0 {
-		return nil
+		return true, nil
+	}
+	if !create {
+		return false, nil
 	}
 	dev, err := tx.tx.ExecContext(ctx, `INSERT INTO devices (created_at) VALUES (?)`, unix(at))
 	if err != nil {
-		return err
+		return false, err
 	}
 	devID, err := dev.LastInsertId()
 	if err != nil {
-		return err
+		return false, err
 	}
 	_, err = tx.tx.ExecContext(ctx, `INSERT INTO macs (mac, device_id, vendor, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)`,
 		mac, devID, oui.LookupString(mac), unix(at), unix(at))
-	return err
+	return err == nil, err
 }
 
 // RefreshVendors updates the vendor names of all MACs from the embedded OUI
@@ -127,7 +196,7 @@ func (db *DB) RefreshVendors(ctx context.Context) (int, error) {
 
 // EnsureMAC makes sure a MAC exists (used by resolvers for MACs seen only via ARP).
 func (db *DB) EnsureMAC(ctx context.Context, mac string, at time.Time) error {
-	return db.InTx(ctx, func(tx *Tx) error { return tx.ensureMAC(ctx, mac, at) })
+	return db.InTx(ctx, func(tx *Tx) error { _, err := tx.ensureMAC(ctx, mac, at, true); return err })
 }
 
 // MACKnown reports whether a MAC is in the database.
@@ -372,4 +441,35 @@ func inListInt(vals []int64) (string, []any) {
 		args[i] = v
 	}
 	return ph, args
+}
+
+// PurgeIdleMACs deletes MACs that were last seen before the cutoff and never
+// had any traffic: no traffic totals of their own and no port group they
+// belonged to. Their location, IP and name history goes with them (ON DELETE
+// CASCADE), open merge suggestions that mention them, and devices left
+// without any MAC. MACs of devices an operator touched (display name, notes,
+// hidden from rankings) are kept. It returns the number of deleted MACs.
+func (db *DB) PurgeIdleMACs(ctx context.Context, cutoff time.Time) (int64, error) {
+	var n int64
+	err := db.InTx(ctx, func(tx *Tx) error {
+		res, err := tx.tx.ExecContext(ctx, `DELETE FROM macs WHERE last_seen < ?
+			AND NOT EXISTS (SELECT 1 FROM traffic_totals t WHERE t.subject_type = 'mac' AND t.subject_id = macs.mac)
+			AND NOT EXISTS (SELECT 1 FROM port_group_macs g WHERE g.mac = macs.mac)
+			AND device_id IN (SELECT id FROM devices WHERE display_name = '' AND notes = '' AND hidden_in_rankings = 0)`,
+			unix(cutoff))
+		if err != nil {
+			return err
+		}
+		if n, err = res.RowsAffected(); err != nil || n == 0 {
+			return err
+		}
+		if _, err := tx.tx.ExecContext(ctx, `DELETE FROM merge_suggestions WHERE status = 'open'
+			AND (mac_a NOT IN (SELECT mac FROM macs) OR mac_b NOT IN (SELECT mac FROM macs))`); err != nil {
+			return err
+		}
+		_, err = tx.tx.ExecContext(ctx, `DELETE FROM devices WHERE NOT EXISTS (SELECT 1 FROM macs WHERE macs.device_id = devices.id)
+			AND display_name = '' AND notes = '' AND hidden_in_rankings = 0`)
+		return err
+	})
+	return n, err
 }

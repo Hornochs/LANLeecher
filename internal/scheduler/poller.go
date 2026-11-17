@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -337,6 +338,14 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		lldpAll = nil
 	}
 	lldp := fdb.NeighborNames(lldpAll)
+	bridges := map[int]bool{}
+	for ifIndex, ns := range lldpAll {
+		for _, n := range ns {
+			if n.Bridge {
+				bridges[ifIndex] = true
+			}
+		}
+	}
 	topo := p.readTopology(g, ports, lldpAll)
 
 	macs := map[int][]macaddr.MAC{}
@@ -361,15 +370,19 @@ func (p *poller) pollFDB(ctx context.Context) error {
 		}
 		p.lastUnknown = unknown
 	}
-	neighbors := map[int64]string{}
+	neighbors := map[int64]store.PortNeighbor{}
 	for ifIndex, name := range lldp {
 		if port := byIf[ifIndex]; port != nil {
-			neighbors[port.ID] = name
+			neighbors[port.ID] = store.PortNeighbor{Name: name, Bridge: bridges[ifIndex]}
 		}
 	}
+	var flooded []int64
 	err = p.m.db.InTx(ctx, func(tx *store.Tx) error {
 		now := store.Now()
-		if err := tx.RecordSightings(ctx, p.sw.ID, sightings, neighbors, p.m.cfg.Polling.UplinkMACThreshold, now); err != nil {
+		var err error
+		flooded, err = tx.RecordSightings(ctx, p.sw.ID, sightings, neighbors, store.SightingOptions{
+			UplinkThreshold: p.m.cfg.Polling.UplinkMACThreshold, MaxPortMACs: p.m.cfg.Polling.MaxPortMACs}, now)
+		if err != nil {
 			return err
 		}
 		return tx.RecordTopology(ctx, p.sw.ID, topo.chassisID, topo.baseMAC, topo.neighbors, topo.lag, now)
@@ -387,6 +400,18 @@ func (p *poller) pollFDB(ctx context.Context) error {
 	warnNoFDB := p.emptyFDB == noFDBAfter
 	p.mu.Unlock()
 	p.log.Debug("fdb polled", "entries", len(entries), "lldp_neighbors", len(neighbors))
+	if len(flooded) > 0 {
+		var names []string
+		for _, id := range flooded {
+			for _, port := range ports {
+				if port.ID == id {
+					names = append(names, port.IfName)
+				}
+			}
+		}
+		p.log.Warn("more MACs on a port than polling.max_port_macs: possibly MAC flooding; no new devices are created from these ports",
+			"ports", strings.Join(names, ", "), "max_port_macs", p.m.cfg.Polling.MaxPortMACs)
+	}
 	if warnNoFDB {
 		p.log.Warn("the switch reports no forwarding table (MAC to port); traffic on its ports is counted but not attributed to clients",
 			"adapter", src.Name())

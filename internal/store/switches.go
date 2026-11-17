@@ -295,9 +295,6 @@ type PortSettings struct {
 	// UplinkDismissed confirms (true) that a port is not an uplink, or
 	// withdraws that confirmation (false).
 	UplinkDismissed *bool
-	// UplinkThreshold is polling.uplink_mac_threshold. It is used to show the
-	// hint again right away when a confirmation is withdrawn.
-	UplinkThreshold int
 }
 
 // ErrWANLinkRequired is returned when a port gets the role "wan" without a WAN link.
@@ -354,8 +351,8 @@ func (db *DB) UpdatePorts(ctx context.Context, ids []int64, s PortSettings) erro
 				// Re-evaluate the hint from the last forwarding-table read
 				// instead of waiting for the next one.
 				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0,
-					uplink_suspect = CASE WHEN role NOT IN ('uplink', 'wan') AND (lldp_neighbor <> '' OR mac_count > ?) THEN 1 ELSE 0 END
-					WHERE id = ?`, s.UplinkThreshold, id); err != nil {
+					uplink_suspect = CASE WHEN role NOT IN ('uplink', 'wan') AND uplink_streak >= ? THEN 1 ELSE 0 END
+					WHERE id = ?`, UplinkConfirmReads, id); err != nil {
 					return err
 				}
 			}

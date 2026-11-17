@@ -462,7 +462,6 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 			f := false
 			settings.UplinkDismissed = &f
 		}
-		settings.UplinkThreshold = s.Cfg.Polling.UplinkMACThreshold
 		if len(ids) > 0 && settings.Role != nil && *settings.Role == accounting.RoleWAN && settings.WANLinkID == nil {
 			redirect(w, r, backURL(sw, r, "err=wan_link_required"))
 			return
@@ -521,7 +520,6 @@ func (s *Server) portsUpdate(w http.ResponseWriter, r *http.Request) {
 				f := false
 				settings.UplinkDismissed = &f
 			}
-			settings.UplinkThreshold = s.Cfg.Polling.UplinkMACThreshold
 			if settings.Role == nil && settings.Hidden == nil && settings.Label == nil && settings.UplinkDismissed == nil {
 				continue
 			}

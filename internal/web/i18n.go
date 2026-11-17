@@ -186,7 +186,7 @@ var messages = map[string][2]string{
 	"ports.no_hc":                 {"nicht unterstützt", "unsupported"},
 	"ports.no_hc_hint":            {"Keine 64-Bit-Zähler – dieser Port wird nicht gezählt.", "No 64-bit counters – this port is not counted."},
 	"ports.uplink_suspect":        {"vermutlich Uplink", "probably uplink"},
-	"ports.uplink_suspect_hint":   {"Viele MACs oder LLDP-Nachbar. Bitte prüfen: als Uplink markieren oder mit „Kein Uplink“ bestätigen.", "Many MACs or an LLDP neighbor. Please check: mark it as uplink or confirm with “Not an uplink”."},
+	"ports.uplink_suspect_hint":   {"Ein Switch als LLDP-Nachbar oder viele MACs, mehrere Abfragen in Folge. Bitte prüfen: als Uplink markieren oder mit „Kein Uplink“ bestätigen.", "A switch as LLDP neighbor or many MACs, in several reads in a row. Please check: mark it as uplink or confirm with “Not an uplink”."},
 	"ports.suspect_banner":        {"%d Port(s) sehen nach Uplink aus, sind aber nicht so markiert. Ein falsch nicht markierter Uplink verfälscht alle Ranglisten. Ist es keiner (z. B. ein Hypervisor), bestätige das mit „Kein Uplink“.", "%d port(s) look like uplinks but are not marked as such. An unmarked uplink skews all rankings. If it is none (e.g. a hypervisor), confirm with “Not an uplink”."},
 	"ports.physical_only":         {"Nur physische Ports", "Physical ports only"},
 	"ports.show_virtual":          {"Virtuelle Interfaces zeigen", "Show virtual interfaces"},

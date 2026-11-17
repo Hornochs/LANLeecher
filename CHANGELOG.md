@@ -8,11 +8,19 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **MAC flooding:** a port with more than `polling.max_port_macs` (512) MACs in one forwarding-table
+  read creates no new devices (known MACs are still updated; the log warns), and MACs that never had
+  traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted hourly. Migration 00010.
+
 - Build with Go 1.26.11 (was 1.24.7) and current `golang.org/x/*` modules. `govulncheck` reported
   about 47 reachable standard-library vulnerabilities (`net/http`, `crypto/x509`) for the old
   toolchain and reports none now.
 
 ### Changed
+
+- The "probably uplink" hint is much calmer: only a switch as LLDP neighbor (bridge capability) or
+  more than `polling.uplink_mac_threshold` MACs (default now 32, was 10) count, and only in three
+  forwarding-table reads in a row. Existing configs with `uplink_mac_threshold: 10` keep their value.
 
 - `/etc/lanleecher` is now mode `0751` (traversable, not listable), so the agent package can read
   its own configuration next to the server's.
