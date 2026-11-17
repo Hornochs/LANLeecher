@@ -35,6 +35,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Resolver: attendees can no longer flood the probe queue or the merge suggestions. New MAC/IP pairs
   are capped per MAC and poll, merge suggestions per MAC and hostname, the `/merges` list shows the
   newest 200 (with a note when cut), and the re-probe bookkeeping is pruned.
+- Resolver: name probe answers (NetBIOS, mDNS, LLMNR) are accepted only from the probed IP, and LLMNR
+  answers must carry the transaction ID of the query, so third parties cannot name a host.
 
 ### Changed
 
