@@ -375,6 +375,7 @@ func (a *API) ports(w http.ResponseWriter, r *http.Request) {
 		IfName         string `json:"if_name"`
 		Label          string `json:"label"`
 		Role           string `json:"role"`
+		WANLinkID      *int64 `json:"wan_link_id"`
 		Hidden         bool   `json:"hidden"`
 		BytesDown      int64  `json:"bytes_down"`
 		BytesUp        int64  `json:"bytes_up"`
@@ -383,8 +384,13 @@ func (a *API) ports(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]port, 0, len(rows))
 	for _, p := range rows {
+		var link *int64
+		if p.Port.WANLinkID > 0 {
+			id := p.Port.WANLinkID
+			link = &id
+		}
 		out = append(out, port{p.Port.ID, p.Port.SwitchName, p.Port.ShortName(), p.Port.Label, string(p.Port.Role),
-			p.Port.Hidden, p.BytesDown, p.BytesUp, p.UnassignedDown, p.UnassignedUp})
+			link, p.Port.Hidden, p.BytesDown, p.BytesUp, p.UnassignedDown, p.UnassignedUp})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"event": eventJSON(ev), "ports": out})
 }

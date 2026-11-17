@@ -41,6 +41,22 @@
       <div class="stat"><span class="stat-label">{{$.T "dashboard.clients"}}</span><span class="stat-value">{{.Summary.Clients}}</span></div>
     </div>
   </section>
+  {{if .WAN}}
+  <section class="card">
+    <div class="card-head"><h3>{{$.T "wan.event_title"}}</h3>{{if $.Can "admin"}}<a href="/admin/wan">{{$.T "admin.wan"}}</a>{{end}}</div>
+    <div class="wan-tiles">
+      {{range .WAN}}
+      <div class="wan-tile">
+        <strong>{{.Link.Name}}</strong>
+        <div class="stat-sub">↓ {{bps .DownBps}}{{if .Link.DownMbps}} · {{printf "%.0f" .DownPct}} %{{end}}</div>
+        {{if .Link.DownMbps}}<svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" role="img" aria-label="{{$.T "wan.utilisation"}} ↓ {{printf "%.0f" .DownPct}} %"><rect class="bar-track" width="100" height="4"/><rect class="bar-down" width="{{printf "%.1f" .DownBar}}" height="4"/></svg>{{end}}
+        <div class="stat-sub">↑ {{bps .UpBps}}{{if .Link.UpMbps}} · {{printf "%.0f" .UpPct}} %{{end}}</div>
+        {{if .Link.UpMbps}}<svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" role="img" aria-label="{{$.T "wan.utilisation"}} ↑ {{printf "%.0f" .UpPct}} %"><rect class="bar-track" width="100" height="4"/><rect class="bar-up" width="{{printf "%.1f" .UpBar}}" height="4"/></svg>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
   <div class="grid-2">
     <section class="card">
       <div class="card-head"><h3>{{$.T "dashboard.top_down"}}</h3><a href="/rankings?dir=down">{{$.T "dashboard.more"}}</a></div>

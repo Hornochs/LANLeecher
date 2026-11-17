@@ -110,6 +110,26 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Port 3 (Po1) is the uplink to the router: make it the WAN port of a named WAN link.
+	fiber := &store.WANLink{Name: "Fiber", DownMbps: 1000, UpMbps: 100}
+	if err := db.CreateWANLink(ctx, fiber); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.CreateWANLink(ctx, &store.WANLink{Name: "Backup LTE"}); err != nil {
+		t.Fatal(err)
+	}
+	wanPorts, err := db.ListPorts(ctx, sw.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wan := accounting.RoleWAN
+	for _, p := range wanPorts {
+		if p.IfIndex == 3 {
+			if err := db.UpdatePorts(ctx, []int64{p.ID}, store.PortSettings{Role: &wan, WANLinkID: &fiber.ID}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	if _, err := db.RecordIP(ctx, "02:00:00:00:00:01", "192.0.2.10", "dhcp", now); err != nil {
 		t.Fatal(err)
 	}
@@ -170,6 +190,16 @@ func TestResponsesMatchSpec(t *testing.T) {
 		{"GET", "/api/v1/events?q=basement", f.full, "", 200},
 		{"GET", "/api/v1/events/" + f.pastSlug, f.full, "", 200},
 		{"GET", "/api/v1/events/nope", f.full, "", 404},
+		{"GET", "/api/v1/events/" + f.pastSlug + "/wan", f.full, "", 200},
+		{"GET", "/api/v1/events/" + f.pastSlug + "/wan?series=true&link=fiber", f.full, "", 200},
+		{"GET", "/api/v1/events/" + f.pastSlug + "/wan?link=nope", f.full, "", 404},
+		{"GET", "/api/v1/events/" + f.pastSlug + "/wan?series=maybe", f.full, "", 400},
+		{"GET", "/api/v1/events/nope/wan", f.full, "", 404},
+		{"GET", "/api/v1/wan", f.full, "", 200},
+		{"GET", "/api/v1/wan?series=1", f.full, "", 200},
+		{"GET", "/api/v1/wan?event=all", f.full, "", 400},
+		{"GET", "/api/v1/wan", f.boardOnly, "", 403},
+		{"GET", "/api/v1/wan-links", f.full, "", 200},
 		{"GET", "/api/v1/clients/search?q=desk", f.full, "", 200},
 		{"GET", "/api/v1/clients/search?q=d", f.full, "", 400},
 		{"GET", "/api/v1/clients/search?q=desk", f.boardOnly, "", 403},

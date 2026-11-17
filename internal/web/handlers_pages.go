@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/lan-dot-party/lanleecher/internal/accounting"
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/store"
@@ -48,6 +50,51 @@ type dashboardData struct {
 	DHCPProblems []*store.DHCPSource
 	// NextSchedule is the next planned event while none is running.
 	NextSchedule *store.EventSchedule
+	// WAN has one live tile per internet connection while an event runs.
+	WAN []wanTile
+}
+
+// wanTile is the live rate of one internet connection, internet view.
+type wanTile struct {
+	Link    *store.WANLink
+	DownBps float64
+	UpBps   float64
+	// DownPct and UpPct are the utilisation of the booked bandwidth in
+	// percent (0 when unknown). The bars are capped at 100.
+	DownPct float64
+	UpPct   float64
+	DownBar float64
+	UpBar   float64
+}
+
+func utilisation(bps float64, mbps int64) float64 {
+	if mbps <= 0 {
+		return 0
+	}
+	return bps * 100 / (float64(mbps) * 1e6)
+}
+
+func (s *Server) wanTiles(ctx context.Context) ([]wanTile, error) {
+	links, err := s.DB.ListWANLinks(ctx)
+	if err != nil || len(links) == 0 {
+		return nil, err
+	}
+	rates := s.Sched.LivePortRates()
+	tiles := make([]wanTile, len(links))
+	for i, l := range links {
+		t := wanTile{Link: l}
+		for _, port := range l.Ports {
+			if r, ok := rates[port.ID]; ok {
+				down, up := accounting.WANDirection(r.DownBps, r.UpBps)
+				t.DownBps += down
+				t.UpBps += up
+			}
+		}
+		t.DownPct, t.UpPct = utilisation(t.DownBps, l.DownMbps), utilisation(t.UpBps, l.UpMbps)
+		t.DownBar, t.UpBar = min(t.DownPct, 100), min(t.UpPct, 100)
+		tiles[i] = t
+	}
+	return tiles, nil
 }
 
 func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error) {
@@ -82,6 +129,9 @@ func (s *Server) dashboardData(r *http.Request, p *Page) (*dashboardData, error)
 		return nil, err
 	}
 	d.Event = ev
+	if d.WAN, err = s.wanTiles(ctx); err != nil {
+		return nil, err
+	}
 	if d.Summary, err = s.DB.EventSummary(ctx, ev.ID); err != nil {
 		return nil, err
 	}
@@ -519,6 +569,41 @@ type eventColumn struct {
 	TopUp   RankingView
 	Chart   template.HTML
 	Ports   []store.PortTrafficRow
+	// WAN has one row per internet connection (event page only).
+	WAN      []wanRow
+	WANTotal *wanRow
+}
+
+// wanRow is the traffic of one internet connection in an event, internet view.
+type wanRow struct {
+	Link         *store.WANLink
+	InternetDown int64
+	InternetUp   int64
+	Chart        template.HTML
+	Ports        int
+}
+
+// wanRows loads the WAN traffic of an event; empty without WAN links.
+func (s *Server) wanRows(ctx context.Context, eventID int64) ([]wanRow, *wanRow, error) {
+	traffic, err := s.DB.WANTraffic(ctx, eventID, true)
+	if err != nil || len(traffic) == 0 {
+		return nil, nil, err
+	}
+	rows := make([]wanRow, len(traffic))
+	total := &wanRow{}
+	for i, t := range traffic {
+		rows[i] = wanRow{Link: t.Link, InternetDown: t.InternetDown, InternetUp: t.InternetUp,
+			Chart: lineChart(t.Series), Ports: len(t.Ports)}
+		if len(t.Link.Ports) > rows[i].Ports {
+			rows[i].Ports = len(t.Link.Ports)
+		}
+		total.InternetDown += t.InternetDown
+		total.InternetUp += t.InternetUp
+	}
+	if len(rows) < 2 {
+		total = nil
+	}
+	return rows, total, nil
 }
 
 func (s *Server) eventColumn(r *http.Request, p *Page, ev *store.Event, limit int, full bool) (*eventColumn, error) {
@@ -559,6 +644,10 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request) {
 	p := s.page(r, ev.Name, "events", nil)
 	c, err := s.eventColumn(r, p, ev, 20, true)
 	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if c.WAN, c.WANTotal, err = s.wanRows(r.Context(), ev.ID); err != nil {
 		s.fail(w, r, err)
 		return
 	}

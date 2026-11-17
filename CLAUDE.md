@@ -37,7 +37,9 @@ docs/, examples/         User docs, ADRs, API guide; runnable API examples
 - **Direction:** `ifHCInOctets` is the client's *upload*, `ifHCOutOctets` its *download*.
   The mapping exists only in `accounting.ClientDirection`.
 - **Store deltas only.** Totals are sums of deltas; a counter reset on a switch must never reduce a total.
-- **Uplinks** are counted on the port only, never attributed to a MAC.
+- **WAN direction:** on a WAN port `ifHCInOctets` is the internet *download*. Stored port traffic stays
+  in client view; the mapping to the internet view exists only in `accounting.WANDirection`.
+- **Uplinks and WAN ports** are counted on the port only, never attributed to a MAC.
 - **Hiding** is filtered at query time (join on `ports`/`devices`), never written into totals.
 - **Credentials** (communities, v3 passwords) are stored AES-GCM encrypted in the database only – never
   in logs, the audit log, API responses or pre-filled forms.

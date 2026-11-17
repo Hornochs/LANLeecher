@@ -39,6 +39,7 @@ Each port has one role that decides who gets credited for its traffic:
 | `multi-client` | always the port group (a small switch with several guests) | visible |
 | `server` | like `client` | hidden |
 | `uplink` | nobody – counted on the port only | hidden |
+| `wan` | nobody – counted on the port only, shown per [internet connection](wan.md) | hidden |
 
 An unmarked uplink is the most common configuration mistake: all traffic behind it lands on one port
 group and tops every ranking. LANLeecher marks a port as **probably uplink** when it has more MACs

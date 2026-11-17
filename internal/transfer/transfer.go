@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/lan-dot-party/lanleecher/internal/accounting"
@@ -53,9 +54,20 @@ type Doc struct {
 	Software   string   `json:"software"`
 	Source     string   `json:"source,omitempty"`
 	Switches   []Switch `json:"switches"`
-	Devices    []Device `json:"devices"`
-	MACs       []MAC    `json:"macs"`
-	Events     []Event  `json:"events"`
+	// WANLinks are the named internet uplinks (optional).
+	WANLinks []WANLink `json:"wan_links,omitempty"`
+	Devices  []Device  `json:"devices"`
+	MACs     []MAC     `json:"macs"`
+	Events   []Event   `json:"events"`
+}
+
+// WANLink is a named internet uplink; Name is the key Port.WANLink uses.
+type WANLink struct {
+	Name     string `json:"name"`
+	Sort     int    `json:"sort,omitempty"`
+	DownMbps int64  `json:"down_mbps,omitempty"`
+	UpMbps   int64  `json:"up_mbps,omitempty"`
+	Notes    string `json:"notes,omitempty"`
 }
 
 // Switch is a switch without credentials. Name is unique within a Doc and
@@ -84,7 +96,9 @@ type Port struct {
 	Label           string `json:"label,omitempty"`
 	Hidden          bool   `json:"hidden,omitempty"`
 	UplinkDismissed bool   `json:"uplink_dismissed,omitempty"`
-	LastSeen        int64  `json:"last_seen"`
+	// WANLink names the WAN link of a port with the role "wan".
+	WANLink  string `json:"wan_link,omitempty"`
+	LastSeen int64  `json:"last_seen"`
 }
 
 // PortRef points at a port by switch name and ifIndex.
@@ -138,9 +152,11 @@ type Event struct {
 	StartedAt  int64       `json:"started_at"`
 	EndedAt    *int64      `json:"ended_at"`
 	PortTotals []PortTotal `json:"port_totals,omitempty"`
-	PortGroups []PortGroup `json:"port_groups,omitempty"`
-	Totals     []Traffic   `json:"totals,omitempty"`
-	Buckets    []Traffic   `json:"buckets,omitempty"`
+	// PortBuckets are 5-minute buckets per port (every role), optional.
+	PortBuckets []PortBucket `json:"port_buckets,omitempty"`
+	PortGroups  []PortGroup  `json:"port_groups,omitempty"`
+	Totals      []Traffic    `json:"totals,omitempty"`
+	Buckets     []Traffic    `json:"buckets,omitempty"`
 }
 
 // PortTotal is the traffic booked on a port in an event (every role).
@@ -149,6 +165,14 @@ type PortTotal struct {
 	Down      int64   `json:"down"`
 	Up        int64   `json:"up"`
 	UpdatedAt int64   `json:"updated_at"`
+}
+
+// PortBucket is the traffic of a port in one 5-minute bucket (client view).
+type PortBucket struct {
+	Port  PortRef `json:"port"`
+	Start int64   `json:"start"`
+	Down  int64   `json:"down"`
+	Up    int64   `json:"up"`
 }
 
 // PortGroup is the shared ranking entry of a port with several MACs. Key is
@@ -271,6 +295,14 @@ func (d *Doc) Validate() error {
 	if !text(d.Software, maxName) || !text(d.Source, maxName) {
 		return invalid("header text too long")
 	}
+	wanLinks := map[string]bool{}
+	for i, l := range d.WANLinks {
+		key := strings.ToLower(l.Name)
+		if l.Name == "" || !text(l.Name, 80) || !text(l.Notes, maxText) || wanLinks[key] || l.DownMbps < 0 || l.UpMbps < 0 {
+			return invalid("WAN link %d: bad or duplicate name, notes or bandwidth", i)
+		}
+		wanLinks[key] = true
+	}
 	ports := map[PortRef]bool{}
 	switches := map[string]bool{}
 	for i := range d.Switches {
@@ -298,6 +330,9 @@ func (d *Doc) Validate() error {
 			}
 			if !text(p.IfName, maxName) || !text(p.IfAlias, maxName) || !text(p.IfDescr, maxName) || !text(p.Label, maxName) {
 				return invalid("switch %q port %d: text field too long", s.Name, p.IfIndex)
+			}
+			if p.WANLink != "" && !wanLinks[strings.ToLower(p.WANLink)] {
+				return invalid("switch %q port %d: unknown WAN link %q", s.Name, p.IfIndex, p.WANLink)
 			}
 		}
 	}
@@ -365,6 +400,14 @@ func (d *Doc) Validate() error {
 			}
 			if t.Down < 0 || t.Up < 0 {
 				return invalid("event %q: negative traffic", e.Slug)
+			}
+		}
+		for _, b := range e.PortBuckets {
+			if err := checkPort("event "+e.Slug, b.Port); err != nil {
+				return err
+			}
+			if b.Down < 0 || b.Up < 0 || b.Start < 0 {
+				return invalid("event %q: negative port traffic or time", e.Slug)
 			}
 		}
 		groups := map[string]bool{}

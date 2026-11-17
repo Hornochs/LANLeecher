@@ -158,3 +158,15 @@ func Plausible(octets uint64, elapsed time.Duration, speedMbps uint64) bool {
 func ClientDirection(portIn, portOut uint64) (down, up uint64) {
 	return portOut, portIn
 }
+
+// WANDirection maps the traffic stored for a port (in client view, as
+// returned by ClientDirection) to the internet's point of view on a WAN port.
+//
+// A WAN port faces the router: what the router sends into the switch
+// (ifHCInOctets, stored as the port's "up") is the LAN's download from the
+// internet, what the switch sends to the router (ifHCOutOctets, stored as
+// "down") is the upload to the internet. This is the only place where that
+// mapping lives. It works on byte counts and on rates.
+func WANDirection[T int64 | float64](storedDown, storedUp T) (internetDown, internetUp T) {
+	return storedUp, storedDown
+}

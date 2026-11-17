@@ -16,12 +16,20 @@ const (
 )
 
 // AddPortTraffic books a delta on the port itself (every role, including uplinks).
+// It also books the port's 5-minute bucket.
 func (tx *Tx) AddPortTraffic(ctx context.Context, eventID, portID int64, down, up uint64, at time.Time) error {
-	_, err := tx.tx.ExecContext(ctx, `INSERT INTO port_traffic_totals (event_id, port_id, bytes_down, bytes_up, updated_at)
+	if _, err := tx.tx.ExecContext(ctx, `INSERT INTO port_traffic_totals (event_id, port_id, bytes_down, bytes_up, updated_at)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT (event_id, port_id) DO UPDATE SET bytes_down = bytes_down + excluded.bytes_down,
 			bytes_up = bytes_up + excluded.bytes_up, updated_at = excluded.updated_at`,
-		eventID, portID, int64(down), int64(up), unix(at))
+		eventID, portID, int64(down), int64(up), unix(at)); err != nil {
+		return err
+	}
+	_, err := tx.tx.ExecContext(ctx, `INSERT INTO port_traffic_buckets (event_id, port_id, bucket_start, bytes_down, bytes_up)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (event_id, port_id, bucket_start) DO UPDATE SET bytes_down = bytes_down + excluded.bytes_down,
+			bytes_up = bytes_up + excluded.bytes_up`,
+		eventID, portID, unix(at.UTC().Truncate(BucketSize)), int64(down), int64(up))
 	return err
 }
 

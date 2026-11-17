@@ -207,3 +207,21 @@ func mustMAC(t *testing.T, s string) macaddr.MAC {
 	}
 	return m
 }
+
+func TestWANRole(t *testing.T) {
+	if !RoleWAN.Valid() || !RoleWAN.IsTransit() || !RoleWAN.HiddenByDefault() {
+		t.Fatal("wan must be a valid, transit, hidden role")
+	}
+	if RoleServer.IsTransit() || RoleClient.IsTransit() {
+		t.Fatal("client and server ports are not transit")
+	}
+	if got := Attribute(RoleWAN, []macaddr.MAC{{2, 0, 0, 0, 0, 1}}); got.Kind != TargetNone {
+		t.Fatalf("wan port attributed to %v", got.Kind)
+	}
+	// Router sends 900 into the switch (port in), switch sends 100 to the router.
+	down, up := ClientDirection(900, 100)
+	inetDown, inetUp := WANDirection(int64(down), int64(up))
+	if inetDown != 900 || inetUp != 100 {
+		t.Fatalf("internet down/up = %d/%d, want 900/100", inetDown, inetUp)
+	}
+}

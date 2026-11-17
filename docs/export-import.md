@@ -11,7 +11,8 @@ A gzip-compressed JSON file with natural keys (no database ids):
   (labels, roles, hiding, uplink hints)
 - devices and MACs with first/last seen, locations, IP and hostname histories, port groups
 - the selected events (all by default) with their traffic totals per port and subject, and the
-  5-minute buckets
+  5-minute buckets, including the 5-minute buckets per port
+- internet connections (WAN links) with their booked bandwidth and the link of each WAN port
 
 Never in the file: credentials (communities, SNMPv3 passwords), users, sessions, API tokens, the
 audit log, DHCP sources, settings and merge suggestions. The secret key of the source instance is
@@ -42,6 +43,8 @@ backup first and is recorded in the audit log.
   is created as *archived*: no credentials, disabled, never polled; edit and connection test are
   not available, deleting is. If the name is taken by a switch with another host, the imported one
   is named `<name> (import)`.
+- **WAN links:** matched by name, otherwise created. A WAN port whose link is missing in the file
+  is imported as an uplink.
 - **MACs:** an existing MAC keeps its device. Histories are merged (earliest first seen, latest
   last seen); the display name is only filled in if it is empty. New MACs are grouped into devices
   like in the source.

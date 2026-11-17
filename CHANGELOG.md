@@ -19,9 +19,18 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - GitHub Actions updated and pinned to commit SHAs (supersedes #3); golangci-lint v2.15.0 with a
   new `.golangci.yml` (standard linters, gofmt).
 - The container image is based on Alpine 3.24 (supersedes #8).
+- Port traffic is now also recorded in 5-minute buckets per port.
+- `/api/v1/ports` reports `wan_link_id` and the role `wan`.
 
 ### Added
 
+- **Internet connections (WAN links):** named WAN links (for example fibre and an LTE backup) with
+  optional booked bandwidth, managed under Admin → Internet connections. Ports get the new role
+  "Internet access (WAN)" plus a link on the port page. Their traffic is counted on the port only,
+  never attributed to a client, and shown from the internet's point of view on the event page
+  (with a chart per link) and as live tiles with utilisation on the dashboard. New API endpoints
+  `GET /api/v1/wan`, `GET /api/v1/events/{slug}/wan` and `GET /api/v1/wan-links`. See
+  [docs/wan.md](docs/wan.md).
 - **Export and import:** `lanleecher export` writes switches, ports, devices, MACs and events with
   their traffic to a gzip JSON file (never credentials, users or tokens); `lanleecher import` and
   Admin → Export/Import read it into another instance, with a preview, a backup and merging of

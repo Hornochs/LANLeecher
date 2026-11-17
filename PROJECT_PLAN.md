@@ -129,6 +129,7 @@ On every counter poll, the port delta is assigned like this:
 - **Port role `client`, exactly one MAC learned** → the delta goes to that MAC.
 - **Port role `client`, several MACs** (small switch under the table) or role **`multi-client`** → the delta goes to a **port group** (switch + port). The group lists all MACs seen there and appears as one ranking entry.
 - **Role `server`** → assigned like `client`; the port is hidden in rankings by default.
+- **Role `wan`** (router/modem port of a named internet connection) → like `uplink`: counted on the port only. Internet download is `ifHCInOctets` of the port; the mapping exists only in `accounting.WANDirection`. Hidden by default.
 - **Role `uplink`** (trunk to other switches/the router) → counted on the port, but never assigned to a MAC. Otherwise the traffic behind it would be counted twice. Hidden by default.
 - **No MAC learned** (e.g. right after link-up) → the delta stays on the port as "unassigned" and is not credited to the next MAC that shows up.
 
@@ -198,8 +199,10 @@ The model separates master data (switches, ports, devices), running state (last 
 | Table | Important fields | Purpose |
 | --- | --- | --- |
 | `switches` | id, name, host, port, snmp\_version, credentials\_enc, poll\_interval, fdb\_adapter, arp\_source, enabled, archived (imported: no credentials, never polled) | Configured switches |
-| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`), display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
+| `ports` | id, switch\_id, if\_index, if\_name, if\_alias, if\_type, physical, lldp\_neighbor, role, label, hidden\_in\_rankings, mac\_count, uplink\_suspect, uplink\_dismissed, last\_seen | Ports with role (`client`, `multi-client`, `server`, `uplink`, `wan`), `wan_link_id`, display name (also the name of the port group), ranking visibility, uplink hint and its "not an uplink" confirmation |
 | `port_counter_state` | port\_id, in\_raw, out\_raw, counter\_bits, sys\_uptime, discontinuity, polled\_at | Last raw value for delta computation |
+| `wan_links` | id, name (unique), sort, down\_mbps, up\_mbps, notes, created\_at | Named internet connections; ports with role `wan` point to one via `ports.wan_link_id` |
+| `port_traffic_buckets` | event\_id, port\_id, bucket\_start, bytes\_down, bytes\_up | 5-minute buckets of every port (client view); basis of the WAN series |
 | `port_traffic_totals` | event\_id, port\_id, bytes\_down, bytes\_up, updated\_at | Traffic of every port per event, uplinks included |
 | `events` | id, name, slug, started\_at, ended\_at, notes | LAN events; at most one active |
 | `event_schedules` | id, name, notes, starts\_at, ends\_at (exclusive), event\_id, created\_at | Planned events; `event_id` links the event once started |
@@ -238,7 +241,7 @@ Traffic is always booked into an active event. Without an active event, LANLeech
 ### Managing ports
 
 - After a switch is added, LANLeecher reads all interfaces with `ifName`, `ifAlias`, status and speed and shows them as a table. From then on, every port is counted.
-- Per port: choose a role (`client` by default, `multi-client`, `server`, `uplink`), set a display name (e.g. "Game server rack", "Table 7"; it names the port group in rankings and on the board) and the "Hide in rankings" switch.
+- Per port: choose a role (`client` by default, `multi-client`, `server`, `uplink`, `wan` with an internet connection chosen under Admin → Internet connections), set a display name (e.g. "Game server rack", "Table 7"; it names the port group in rankings and on the board) and the "Hide in rankings" switch.
 - A port flagged as "probably uplink" can be confirmed as **not an uplink** (e.g. a hypervisor with many VMs); the hint stays off until the confirmation is withdrawn or the port becomes an uplink.
 - Multi-select, e.g. to set all ports 45–48 to uplink or hide them at once.
 - Next to each port: currently learned MACs with hostname and the traffic in the active event.
@@ -325,6 +328,7 @@ The API is a JSON REST API under `/api/v1`, secured with bearer tokens that admi
 | `POST /api/v1/events` / `POST /api/v1/events/{slug}/stop` | write:events | Start/stop an event |
 | `GET /api/v1/schedules` | read:rankings | Planned events |
 | `POST /api/v1/schedules` / `DELETE /api/v1/schedules/{id}` | write:events | Plan / delete a planned event |
+| `GET /api/v1/wan` / `GET /api/v1/events/{slug}/wan` | read:rankings | Internet traffic per WAN link (`series`, `link`); `GET /api/v1/wan-links` lists the links and ports |
 | `GET /api/v1/metrics` | read:rankings | Prometheus format (can be turned off) |
 | `GET /api/` | – | OpenAPI specification + interactive docs |
 

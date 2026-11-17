@@ -144,7 +144,9 @@ type Port struct {
 	// UplinkDismissed is set when an operator confirmed that the port is not
 	// an uplink; the uplink hint then stays off.
 	UplinkDismissed bool
-	LastSeen        time.Time
+	// WANLinkID is the internet uplink of a port with the role "wan" (0 = none).
+	WANLinkID int64
+	LastSeen  time.Time
 }
 
 // Name returns the label, or switch and interface name.
@@ -168,12 +170,12 @@ func (p *Port) ShortName() string {
 
 const portCols = `p.id, p.switch_id, s.name, p.if_index, p.if_name, p.if_alias, p.if_descr, p.if_type, p.physical,
 	p.lldp_neighbor, p.oper_up, p.speed_mbps, p.hc_supported, p.role, p.label, p.hidden_in_rankings, p.mac_count,
-	p.uplink_suspect, p.uplink_dismissed, p.last_seen`
+	p.uplink_suspect, p.uplink_dismissed, COALESCE(p.wan_link_id, 0), p.last_seen`
 
 func portDest(p *Port, role *string, seen *int64) []any {
 	return []any{&p.ID, &p.SwitchID, &p.SwitchName, &p.IfIndex, &p.IfName, &p.IfAlias, &p.IfDescr, &p.IfType, &p.Physical,
 		&p.LLDPNeighbor, &p.OperUp, &p.SpeedMbps, &p.HCSupported, role, &p.Label, &p.Hidden, &p.MACCount,
-		&p.UplinkSuspect, &p.UplinkDismissed, seen}
+		&p.UplinkSuspect, &p.UplinkDismissed, &p.WANLinkID, seen}
 }
 
 func scanPort(row interface{ Scan(...any) error }) (*Port, error) {
@@ -277,9 +279,12 @@ func (tx *Tx) UpsertPorts(ctx context.Context, switchID int64, obs []PortObserva
 
 // PortSettings are the admin-editable port fields. Nil fields stay unchanged.
 type PortSettings struct {
-	Role   *accounting.Role
-	Label  *string
-	Hidden *bool
+	Role *accounting.Role
+	// WANLinkID assigns the WAN link; required when Role is "wan". Ports that
+	// get any other role lose their WAN link.
+	WANLinkID *int64
+	Label     *string
+	Hidden    *bool
 	// UplinkDismissed confirms (true) that a port is not an uplink, or
 	// withdraws that confirmation (false).
 	UplinkDismissed *bool
@@ -287,6 +292,9 @@ type PortSettings struct {
 	// hint again right away when a confirmation is withdrawn.
 	UplinkThreshold int
 }
+
+// ErrWANLinkRequired is returned when a port gets the role "wan" without a WAN link.
+var ErrWANLinkRequired = errors.New("a WAN port needs a WAN link")
 
 // UpdatePorts applies settings to several ports. Setting a role without an
 // explicit Hidden value applies the role's default visibility. Making a port
@@ -299,8 +307,23 @@ func (db *DB) UpdatePorts(ctx context.Context, ids []int64, s PortSettings) erro
 				if s.Hidden != nil {
 					hidden = *s.Hidden
 				}
-				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET role = ?, hidden_in_rankings = ? WHERE id = ?`,
-					string(*s.Role), boolInt(hidden), id); err != nil {
+				var link any
+				if *s.Role == accounting.RoleWAN {
+					if s.WANLinkID == nil || *s.WANLinkID <= 0 {
+						return ErrWANLinkRequired
+					}
+					var n int
+					if err := tx.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wan_links WHERE id = ?`, *s.WANLinkID).
+						Scan(&n); err != nil {
+						return err
+					}
+					if n == 0 {
+						return ErrWANLinkRequired // unknown link (stale or tampered form)
+					}
+					link = *s.WANLinkID
+				}
+				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET role = ?, hidden_in_rankings = ?, wan_link_id = ? WHERE id = ?`,
+					string(*s.Role), boolInt(hidden), link, id); err != nil {
 					return err
 				}
 			} else if s.Hidden != nil {
@@ -317,19 +340,19 @@ func (db *DB) UpdatePorts(ctx context.Context, ids []int64, s PortSettings) erro
 			switch {
 			case s.UplinkDismissed != nil && *s.UplinkDismissed:
 				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 1, uplink_suspect = 0
-					WHERE id = ? AND role <> 'uplink'`, id); err != nil {
+					WHERE id = ? AND role NOT IN ('uplink', 'wan')`, id); err != nil {
 					return err
 				}
 			case s.UplinkDismissed != nil:
 				// Re-evaluate the hint from the last forwarding-table read
 				// instead of waiting for the next one.
 				if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0,
-					uplink_suspect = CASE WHEN role <> 'uplink' AND (lldp_neighbor <> '' OR mac_count > ?) THEN 1 ELSE 0 END
+					uplink_suspect = CASE WHEN role NOT IN ('uplink', 'wan') AND (lldp_neighbor <> '' OR mac_count > ?) THEN 1 ELSE 0 END
 					WHERE id = ?`, s.UplinkThreshold, id); err != nil {
 					return err
 				}
 			}
-			if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0 WHERE id = ? AND role = 'uplink'`,
+			if _, err := tx.tx.ExecContext(ctx, `UPDATE ports SET uplink_dismissed = 0 WHERE id = ? AND role IN ('uplink', 'wan')`,
 				id); err != nil {
 				return err
 			}

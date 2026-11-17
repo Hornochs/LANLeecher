@@ -60,7 +60,10 @@ Logged-in users have `read:*` as viewers and `write:events` from operator upward
 | `GET /api/v1/clients/mac/{mac}/timeseries` | read:clients | 5-minute buckets of one event |
 | `GET /api/v1/clients/ip/{ip}` | read:clients | MACs that had this IP |
 | `GET /api/v1/clients/hostname/{name}` | read:clients | MACs that had this hostname |
-| `GET /api/v1/ports` | read:clients | Traffic of every port in an event, incl. uplinks and unassigned traffic |
+| `GET /api/v1/ports` | read:clients | Traffic of every port in an event, incl. uplinks, WAN ports (`role: wan`, `wan_link_id`) and unassigned traffic |
+| `GET /api/v1/wan` | read:rankings | Internet traffic per WAN link of the running event (`event`, `series`, `link`) |
+| `GET /api/v1/events/{slug}/wan` | read:rankings | The same for one event; see [wan.md](wan.md) |
+| `GET /api/v1/wan-links` | read:rankings | Configured WAN links with their ports |
 | `GET /api/v1/board` | read:board | Beamer content; `limit` 10/20/50, `event` |
 | `GET /api/v1/board/stream` | read:board | The same as Server-Sent Events after every poll |
 | `GET /api/v1/metrics` | read:rankings | Prometheus metrics |

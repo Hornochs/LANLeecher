@@ -192,6 +192,10 @@ svg.chart .hover-dot-up { fill: var(--up); stroke: var(--surface); stroke-width:
 .badge-warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
 .badge-live { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 .role-uplink { border-color: var(--warn); }
+.role-wan, .badge-wan { border-color: var(--accent); }
+.wan-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .8rem; }
+.wan-tile { border: 1px solid var(--border, currentColor); border-radius: 7px; padding: .6rem .8rem; }
+svg.bar rect.bar-track { fill: var(--surface-2); }
 .role-server { border-color: var(--accent); }
 
 .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; vertical-align: middle; }
@@ -289,4 +293,14 @@ body.board { background: #05080c; color: #f1f5f9; min-height: 100vh; padding: 2v
   .board-grid { grid-template-columns: 1fr; }
   .search input { width: 100%; }
   .search { margin-left: 0; width: 100%; }
+}
+
+/* The internet connection select only matters for the role "wan". Without
+   JavaScript (CSP): hidden unless "wan" is selected in the same cell/bar.
+   Browsers without :has() keep showing it. */
+@supports selector(:has(a)) {
+  .bulk .wan-select, td .wan-select { display: none; }
+  td:has(option[value="wan"]:checked) .wan-select { display: inline-block; }
+  .bulk:has(option[value="wan"]:checked) label.wan-select { display: inline-flex; }
+  .bulk:has(option[value="wan"]:checked) span.wan-select { display: inline; }
 }

@@ -19,6 +19,26 @@
 </div>
 {{if .Chart}}<section class="card"><h3>{{$.T "dashboard.timeline"}}</h3>{{.Chart}}{{template "legend" $}}<p class="muted small">{{$.T "chart.click_hint"}}</p>
   <div id="chart-detail" aria-live="polite"></div></section>{{end}}
+{{if .WAN}}
+<section class="card">
+  <h3>{{$.T "wan.event_title"}}</h3>
+  <p class="muted small">{{$.T "wan.event_hint"}}</p>
+  <table>
+    <thead><tr><th>{{$.T "col.name"}}</th><th class="num">{{$.T "col.down"}}</th><th class="num">{{$.T "col.up"}}</th></tr></thead>
+    <tbody>
+    {{range .WAN}}
+    <tr>
+      <td><strong>{{.Link.Name}}</strong>{{if not .Ports}} <span class="muted small">{{$.T "wan.link_no_ports"}}</span>{{end}}</td>
+      <td class="num">{{bytes .InternetDown}}</td><td class="num">{{bytes .InternetUp}}</td>
+    </tr>
+    {{end}}
+    {{with .WANTotal}}<tr><td><strong>{{$.T "wan.total"}}</strong></td><td class="num"><strong>{{bytes .InternetDown}}</strong></td><td class="num"><strong>{{bytes .InternetUp}}</strong></td></tr>{{end}}
+    </tbody>
+  </table>
+  {{$charts := false}}{{range .WAN}}{{if .Chart}}{{$charts = true}}<h4>{{.Link.Name}}</h4>{{.Chart}}{{end}}{{end}}
+  {{if $charts}}{{template "legend" $}}{{end}}
+</section>
+{{end}}
 <div class="grid-2">
   <section class="card"><h3>{{$.T "dashboard.top_down"}}</h3>{{template "ranking_rows" .TopDown}}</section>
   <section class="card"><h3>{{$.T "dashboard.top_up"}}</h3>{{template "ranking_rows" .TopUp}}</section>
