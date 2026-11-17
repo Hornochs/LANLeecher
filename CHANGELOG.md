@@ -19,6 +19,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the user name to 64 characters; only local paths are accepted as the page after login.
 - Board stream (`/api/v1/board/stream`, public with `board.public`): at most 512 open streams, 8 per
   client address (429 beyond that), and a client that stops reading is dropped after 15 s.
+- A warning at start when LANLeecher serves plain HTTP on a network address (the Docker default),
+  and a Docker note on HTTPS.
 - **Cloned MACs:** while the latest forwarding-table reads show a MAC on two client ports at once,
   the traffic of those ports is booked as unassigned instead of crediting it to the MAC, and the
   log warns. A device that moves to another port is credited again after the old switch's next

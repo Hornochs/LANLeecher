@@ -7,6 +7,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -257,6 +259,25 @@ func (c *Config) Validate() error {
 // SecureCookies reports whether session cookies get the Secure flag.
 func (c *Config) SecureCookies() bool {
 	return strings.HasPrefix(c.PublicURL, "https://")
+}
+
+// PlainHTTPOnNetwork reports whether LANLeecher serves plain HTTP on an
+// address other clients can reach: no own TLS, an http:// public_url and a
+// listen address that is not loopback. Passwords, session cookies and API
+// tokens then cross the LAN in clear text.
+func (c *Config) PlainHTTPOnNetwork() bool {
+	if c.TLS.CertFile != "" || c.SecureCookies() {
+		return false
+	}
+	host, _, err := net.SplitHostPort(c.Listen)
+	if err != nil {
+		return true
+	}
+	if host == "localhost" {
+		return false
+	}
+	ip, err := netip.ParseAddr(host)
+	return err != nil || !ip.IsLoopback()
 }
 
 // ResolvePath makes p absolute relative to the config file's directory.

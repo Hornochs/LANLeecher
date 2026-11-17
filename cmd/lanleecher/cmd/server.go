@@ -125,6 +125,11 @@ var serverCmd = &cobra.Command{
 			}
 		}()
 		log.Info("http listening", "addr", e.cfg.Listen)
+		if e.cfg.PlainHTTPOnNetwork() {
+			log.Warn("plain HTTP on a network address: passwords, session cookies and API tokens cross the LAN unencrypted; "+
+				"put LANLeecher behind an HTTPS reverse proxy, set tls.cert_file/tls.key_file, or listen on 127.0.0.1",
+				"listen", e.cfg.Listen, "public_url", e.cfg.PublicURL)
+		}
 		select {
 		case err := <-errc:
 			if !errors.Is(err, http.ErrServerClosed) {
