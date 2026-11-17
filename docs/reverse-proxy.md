@@ -11,8 +11,12 @@ trusted_proxies: [127.0.0.1, "::1"]        # the proxy's address, for real clien
 
 Two things matter for every proxy:
 
-1. **Client IP:** send `X-Real-IP` or `X-Forwarded-For`. LANLeecher uses it for login lockouts, rate
-   limits and the audit log – but only from addresses in `trusted_proxies`.
+1. **Client IP:** append the client to `X-Forwarded-For` (nginx: `$proxy_add_x_forwarded_for`; Caddy
+   and Traefik do it by default). LANLeecher uses it for login lockouts, rate limits and the audit
+   log – but only from addresses in `trusted_proxies`. It reads the header from the right and skips
+   trusted proxies, so entries a client sends itself are ignored; `X-Real-IP` is only a fallback.
+   Without the proxy in `trusted_proxies` every client looks like the proxy, and LANLeecher logs a
+   warning on the first such request.
 2. **No buffering for `/api/v1/board/stream`.** The board uses Server-Sent Events; a buffering
    proxy delays updates until the buffer is full. LANLeecher sends `X-Accel-Buffering: no` and a
    keep-alive comment every 25 seconds, but some proxies need explicit configuration.

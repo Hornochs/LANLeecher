@@ -187,8 +187,8 @@ func (l *LoginLimiter) Fail(keys ...string) {
 			s.first = now
 		}
 	}
-	// Opportunistic cleanup.
-	if len(l.state) > 10000 {
+	// Drop expired entries before the map gets large.
+	if len(l.state) > 1000 {
 		for k, s := range l.state {
 			if now.Sub(s.first) > l.Window && now.After(s.lockedUntil) {
 				delete(l.state, k)

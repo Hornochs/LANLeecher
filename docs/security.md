@@ -18,14 +18,15 @@ credentials can be decrypted – back up both, but keep them away from untrusted
 
 | Threat | Mitigation |
 | --- | --- |
-| Guests on the LAN guess passwords | login lockout (5 failures per 10 min per IP and per user name → 5 min), Argon2id, no default account |
+| Guests on the LAN guess passwords | login lockout (5 failures per 10 min per client address and user name, 20 per client address across user names → 5 min; never per user name alone, so nobody can lock the admin out), login form limited to 8 KiB, Argon2id, no default account |
 | Malicious hostnames or `ifAlias` values (stored XSS) | all output escaped by `html/template`; CSP `script-src 'self'` without inline scripts; board JS uses `textContent` |
 | CSV injection through hostnames in exports | values starting with `= + - @` are prefixed with `'` |
 | Cross-site request forgery | per-session CSRF token on every POST; `SameSite=Lax` cookies; login form with double-submit token |
 | Clickjacking | `X-Frame-Options: DENY`, `frame-ancestors 'none'` |
 | Stolen API token | scopes, optional expiry and IP allowlist, immediate revocation, `last_used` display, rate limit |
 | MAC addresses leaking through public views | board and `read:rankings` never show MACs/IPs; devices without a name appear as `Client #<id>` |
-| Spoofed client IPs in logs/limits | `X-Real-IP`/`X-Forwarded-For` only from `trusted_proxies` |
+| Spoofed client IPs in logs/limits | `X-Forwarded-For` (read right to left, trusted hops skipped) or `X-Real-IP` only from `trusted_proxies`; warning when proxy headers come from elsewhere |
+| Redirect to another site after login | only local paths are accepted as the page after login |
 | Compromised service | systemd unit without capabilities, `ProtectSystem=strict`, only `/var/lib/lanleecher` writable |
 | Kea impersonated on the network | certificate verified during the TLS handshake, before credentials are sent; pinned certificates; a changed certificate stops polling until an admin accepts it |
 | LANLeecher changing Kea | only `version-get`, `list-commands`, `lease4-get-page`, `lease6-get-page` can be sent (allowlist in code) |

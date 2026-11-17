@@ -11,6 +11,12 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **MAC flooding:** a port with more than `polling.max_port_macs` (512) MACs in one forwarding-table
   read creates no new devices (known MACs are still updated; the log warns), and MACs that never had
   traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted hourly. Migration 00010.
+- **Login:** the lockout locks the pair of client address and user name after 5 failures and a
+  client address after 20 failures across user names, never a user name for everyone, so nobody can
+  lock the admin out. Behind a reverse proxy the client address comes from `X-Forwarded-For` read
+  right to left (trusted proxies skipped), `X-Real-IP` only as fallback, with a warning when proxy
+  headers arrive from an address outside `trusted_proxies`. The login form is limited to 8 KiB and
+  the user name to 64 characters; only local paths are accepted as the page after login.
 - **Cloned MACs:** while the latest forwarding-table reads show a MAC on two client ports at once,
   the traffic of those ports is booked as unassigned instead of crediting it to the MAC, and the
   log warns. A device that moves to another port is credited again after the old switch's next
