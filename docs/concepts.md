@@ -42,8 +42,10 @@ Each port has one role that decides who gets credited for its traffic:
 | `wan` | nobody – counted on the port only, shown per [internet connection](wan.md) | hidden |
 
 An unmarked uplink is the most common configuration mistake: all traffic behind it lands on one port
-group and tops every ranking. LANLeecher marks a port as **probably uplink** when it has more MACs
-than `polling.uplink_mac_threshold` or an LLDP neighbor; an operator confirms it by setting the role.
+group and tops every ranking. LANLeecher marks a port as **probably uplink** when, in three
+forwarding-table reads in a row, it has more MACs than `polling.uplink_mac_threshold` (32) or a
+switch as LLDP neighbor (one that announces bridge capability; PCs, phones and hypervisors that
+send LLDP do not count); an operator confirms it by setting the role.
 If the port is not an uplink – a hypervisor with many VMs, a server that speaks LLDP – an operator
 presses **Not an uplink**. The hint then stays off, whatever the port learns later, until the
 confirmation is withdrawn with **Check again** or the port is made an uplink.
@@ -151,3 +153,24 @@ beamer view is always dark.
 | `viewer` | see rankings, search, detail pages and events |
 | `operator` | additionally start/stop events, set port roles and visibility, merge devices |
 | `admin` | additionally manage switches, users, API tokens; see settings and the audit log |
+
+### MAC flooding and idle MACs
+
+A port that reports more MACs than `polling.max_port_macs` (512) in one forwarding-table read
+creates no new devices – an attendee flooding the switch with random MACs does not fill the
+database. Known MACs on that port are still updated, and the log warns about the port; port
+security on the switch (one sticky MAC per client port) stops the flood itself. MACs that never
+had any traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted every hour
+together with their location and name history; devices an operator named, annotated or hid are
+kept.
+
+### Cloned MACs
+
+Traffic of a port with exactly one MAC is credited to that MAC. If the latest forwarding-table read
+of another switch (or of the same one) still sees that MAC on another client port – typically an
+attendee who cloned someone's MAC to push traffic onto them – the traffic of both ports goes to
+*unassigned*, and the log warns once per MAC and hour. An attendee who simply moves to another port
+is credited again as soon as the old switch has been read once more (at most one
+`polling.fdb_interval`, because then the old port no longer has the MAC). Several MACs on one client
+port always form a port group. Neither can be ruled out completely in software: **port security
+with one sticky MAC per client port** on the switches is the reliable protection.

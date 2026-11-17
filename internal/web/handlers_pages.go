@@ -361,7 +361,7 @@ func (s *Server) device(w http.ResponseWriter, r *http.Request) {
 	d.IPs, _ = s.DB.DeviceIPHistory(ctx, id)
 	d.Hostnames, _ = s.DB.DeviceHostnameHistory(ctx, id)
 	d.Locations, _ = s.DB.DeviceLocations(ctx, id)
-	d.Suggestions, _ = s.DB.ListMergeSuggestions(ctx, id)
+	d.Suggestions, _, _ = s.DB.ListMergeSuggestions(ctx, id)
 
 	if slug := r.URL.Query().Get("event"); slug != "" {
 		d.ChartEvent, _ = s.DB.EventBySlug(ctx, slug)
@@ -420,7 +420,7 @@ type mergeItem struct {
 }
 
 func (s *Server) merges(w http.ResponseWriter, r *http.Request) {
-	list, err := s.DB.ListMergeSuggestions(r.Context(), 0)
+	list, truncated, err := s.DB.ListMergeSuggestions(r.Context(), 0)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -438,7 +438,10 @@ func (s *Server) merges(w http.ResponseWriter, r *http.Request) {
 	for _, m := range list {
 		items = append(items, mergeItem{S: m, NameA: labels[m.DeviceA].Name, NameB: labels[m.DeviceB].Name})
 	}
-	s.render(w, r, "merges", s.page(r, translate(language(r), "merges.title"), "merges", struct{ Items []mergeItem }{items}))
+	s.render(w, r, "merges", s.page(r, translate(language(r), "merges.title"), "merges", struct {
+		Items     []mergeItem
+		Truncated bool
+	}{items, truncated}))
 }
 
 func (s *Server) mergeDecide(w http.ResponseWriter, r *http.Request) {

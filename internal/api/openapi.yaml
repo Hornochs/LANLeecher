@@ -125,7 +125,7 @@ paths:
               type: object
               required: [name]
               properties:
-                name: {type: string, minLength: 1}
+                name: {type: string, minLength: 1, maxLength: 200}
                 notes: {type: string}
             example: {name: "Basement LAN #13", notes: ""}
       responses:
@@ -396,7 +396,7 @@ paths:
               type: object
               required: [name, starts_at, ends_at]
               properties:
-                name: {type: string, minLength: 1}
+                name: {type: string, minLength: 1, maxLength: 200}
                 notes: {type: string}
                 starts_at: {type: string, format: date-time}
                 ends_at: {type: string, format: date-time, description: Exclusive.}

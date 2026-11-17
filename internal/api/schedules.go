@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -51,9 +52,9 @@ func (a *API) createSchedule(w http.ResponseWriter, r *http.Request) {
 		EndsAt   time.Time `json:"ends_at"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil ||
-		strings.TrimSpace(body.Name) == "" || body.StartsAt.IsZero() || body.EndsAt.IsZero() {
+		strings.TrimSpace(body.Name) == "" || utf8.RuneCountInString(body.Name) > 200 || body.StartsAt.IsZero() || body.EndsAt.IsZero() {
 		problem(w, http.StatusBadRequest, "invalid_body", "Bad Request",
-			`expected {"name": "...", "starts_at": "<RFC 3339>", "ends_at": "<RFC 3339>", "notes": "..."}`)
+			`expected {"name": "...", "starts_at": "<RFC 3339>", "ends_at": "<RFC 3339>", "notes": "..."}; name at most 200 characters`)
 		return
 	}
 	s := &store.EventSchedule{Name: body.Name, Notes: body.Notes, StartsAt: body.StartsAt.UTC().Truncate(time.Second),

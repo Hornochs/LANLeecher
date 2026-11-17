@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -149,8 +150,8 @@ func (a *API) startEvent(w http.ResponseWriter, r *http.Request) {
 		Name  string `json:"name"`
 		Notes string `json:"notes"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
-		problem(w, http.StatusBadRequest, "invalid_body", "Bad Request", `expected {"name": "...", "notes": "..."}`)
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" || utf8.RuneCountInString(body.Name) > 200 {
+		problem(w, http.StatusBadRequest, "invalid_body", "Bad Request", `expected {"name": "...", "notes": "..."}; name at most 200 characters`)
 		return
 	}
 	ev, err := a.DB.StartEvent(r.Context(), body.Name, body.Notes)
@@ -436,7 +437,17 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	ip := a.ClientIP(r)
+	if !a.streams.acquire(ip) {
+		w.Header().Set("Retry-After", "30")
+		problem(w, http.StatusTooManyRequests, "too_many_streams", "Too Many Requests",
+			"too many open board streams; try again later")
+		return
+	}
+	defer a.streams.release(ip)
 	rc := http.NewResponseController(w)
+	// A client that stops reading must not block this goroutine forever.
+	deadline := func() { _ = rc.SetWriteDeadline(time.Now().Add(streamWriteTimeout * time.Second)) }
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no")
@@ -449,6 +460,7 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 		data, _ := json.Marshal(b)
+		deadline()
 		if _, err := fmt.Fprintf(w, "event: board\ndata: %s\n\n", data); err != nil {
 			return false
 		}
@@ -468,6 +480,7 @@ func (a *API) boardStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-heartbeat.C:
+			deadline()
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil || rc.Flush() != nil {
 				return
 			}

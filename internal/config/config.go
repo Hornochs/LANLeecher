@@ -7,6 +7,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -78,9 +80,16 @@ type Polling struct {
 	Timeout time.Duration `yaml:"timeout"`
 	// Retries is the number of retries of a single SNMP request.
 	Retries int `yaml:"retries"`
-	// UplinkMACThreshold marks ports with more MACs than this as "probably
-	// uplink".
+	// UplinkMACThreshold: ports with more MACs than this (or a switch as LLDP
+	// neighbour) in several reads in a row get the hint "probably uplink".
 	UplinkMACThreshold int `yaml:"uplink_mac_threshold"`
+	// MaxPortMACs: a port with more MACs than this in one forwarding-table read
+	// creates no new devices (MAC flooding); known MACs are still updated.
+	MaxPortMACs int `yaml:"max_port_macs"`
+	// IdleMACRetention: MACs without any recorded traffic that were not seen
+	// for this long are deleted (with their location and name history).
+	// Devices with a display name, notes or hidden from rankings are kept.
+	IdleMACRetention time.Duration `yaml:"idle_mac_retention"`
 }
 
 // Resolver configures IP and hostname discovery.
@@ -176,7 +185,13 @@ func (c *Config) applyDefaults() {
 		c.Polling.Retries = 1
 	}
 	if c.Polling.UplinkMACThreshold == 0 {
-		c.Polling.UplinkMACThreshold = 10
+		c.Polling.UplinkMACThreshold = 32
+	}
+	if c.Polling.MaxPortMACs == 0 {
+		c.Polling.MaxPortMACs = 512
+	}
+	if c.Polling.IdleMACRetention == 0 {
+		c.Polling.IdleMACRetention = 24 * time.Hour
 	}
 	if c.Resolver.Order == nil {
 		c.Resolver.Order = []string{"snmp-arp", "local-neigh", "netbios", "mdns", "dns-ptr"}
@@ -244,6 +259,25 @@ func (c *Config) Validate() error {
 // SecureCookies reports whether session cookies get the Secure flag.
 func (c *Config) SecureCookies() bool {
 	return strings.HasPrefix(c.PublicURL, "https://")
+}
+
+// PlainHTTPOnNetwork reports whether LANLeecher serves plain HTTP on an
+// address other clients can reach: no own TLS, an http:// public_url and a
+// listen address that is not loopback. Passwords, session cookies and API
+// tokens then cross the LAN in clear text.
+func (c *Config) PlainHTTPOnNetwork() bool {
+	if c.TLS.CertFile != "" || c.SecureCookies() {
+		return false
+	}
+	host, _, err := net.SplitHostPort(c.Listen)
+	if err != nil {
+		return true
+	}
+	if host == "localhost" {
+		return false
+	}
+	ip, err := netip.ParseAddr(host)
+	return err != nil || !ip.IsLoopback()
 }
 
 // ResolvePath makes p absolute relative to the config file's directory.

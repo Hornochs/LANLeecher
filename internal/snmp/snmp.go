@@ -207,6 +207,30 @@ func privProto(p string) (gosnmp.SnmpV3PrivProtocol, error) {
 	return 0, fmt.Errorf("unknown v3 privacy protocol %q", p)
 }
 
+// MaxWalkRows caps the rows of a single walk so a misbehaving device cannot
+// exhaust memory. It is a variable so tests can lower it.
+var MaxWalkRows = 20000
+
+// ErrTooManyRows is returned when a walk exceeds MaxWalkRows.
+var ErrTooManyRows = errors.New("snmp walk exceeded the row limit")
+
+// walkLimited collects the PDUs of a walk and stops with ErrTooManyRows once
+// more than MaxWalkRows rows arrived.
+func walkLimited(walk func(string, gosnmp.WalkFunc) error, root string) ([]gosnmp.SnmpPDU, error) {
+	var pdus []gosnmp.SnmpPDU
+	err := walk(root, func(p gosnmp.SnmpPDU) error {
+		if len(pdus) >= MaxWalkRows {
+			return ErrTooManyRows
+		}
+		pdus = append(pdus, p)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pdus, nil
+}
+
 // Row is one walked value with its index below the column OID.
 type Row struct {
 	Index []int
@@ -217,7 +241,7 @@ type Row struct {
 // A missing column ("no such object") yields no rows and no error.
 func WalkColumn(g *gosnmp.GoSNMP, column string) ([]Row, error) {
 	prefix := "." + strings.TrimPrefix(column, ".")
-	pdus, err := g.BulkWalkAll(prefix)
+	pdus, err := walkLimited(g.BulkWalk, prefix)
 	if err != nil {
 		return nil, err
 	}

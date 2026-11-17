@@ -84,10 +84,10 @@ func newFixture(t *testing.T) *fixture {
 		if err != nil {
 			return err
 		}
-		if err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{
+		if _, err := tx.RecordSightings(ctx, sw.ID, []store.Sighting{
 			{MAC: "02:00:00:00:00:01", PortID: ports[1].ID, VLAN: 1},
 			{MAC: "b8:27:eb:00:00:02", PortID: ports[2].ID, VLAN: 1},
-		}, nil, 10, now); err != nil {
+		}, nil, store.SightingOptions{UplinkThreshold: 10}, now); err != nil {
 			return err
 		}
 		for _, ev := range []int64{past.ID, live.ID} {

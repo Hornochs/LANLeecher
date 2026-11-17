@@ -84,11 +84,22 @@
           "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         },
+        "idle_mac_retention": {
+          "default": "24h",
+          "description": "IdleMACRetention: MACs without any recorded traffic that were not seen for this long are deleted (with their location and name history). Devices with a display name, notes or hidden from rankings are kept.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
         "interval": {
           "default": "30s",
           "description": "The time between two counter polls of a switch. Switches can override it.",
           "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
           "type": "string"
+        },
+        "max_port_macs": {
+          "default": 512,
+          "description": "MaxPortMACs: a port with more MACs than this in one forwarding-table read creates no new devices (MAC flooding); known MACs are still updated.",
+          "type": "integer"
         },
         "retries": {
           "default": 1,
@@ -102,8 +113,8 @@
           "type": "string"
         },
         "uplink_mac_threshold": {
-          "default": 10,
-          "description": "Marks ports with more MACs than this as \"probably uplink\".",
+          "default": 32,
+          "description": "UplinkMACThreshold: ports with more MACs than this (or a switch as LLDP neighbour) in several reads in a row get the hint \"probably uplink\".",
           "type": "integer"
         }
       },

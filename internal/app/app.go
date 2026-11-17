@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lan-dot-party/lanleecher/internal/agentpool"
@@ -35,7 +36,8 @@ type App struct {
 	Planner  *scheduler.EventPlanner
 	Agents   *agentpool.Pool
 
-	trusted []netip.Prefix
+	trusted       []netip.Prefix
+	untrustedOnce sync.Once
 }
 
 // New creates the app. TrustedProxies are parsed once.
@@ -51,8 +53,12 @@ func New(cfg *config.Config, db *store.DB, key *secret.Key, log *slog.Logger) *A
 	return a
 }
 
-// ClientIP returns the client address, honoring X-Real-IP / X-Forwarded-For
-// only from trusted proxies.
+// ClientIP returns the client address. Proxy headers count only when the
+// TCP peer is a trusted proxy: X-Forwarded-For is walked right to left,
+// skipping trusted proxies, and the first other address is the client
+// (proxies append, so entries a client sent itself stay on the left).
+// X-Real-IP is the fallback for proxies that set only that header. Invalid
+// values never win: the peer address is used instead.
 func (a *App) ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -63,18 +69,51 @@ func (a *App) ClientIP(r *http.Request) string {
 		return host
 	}
 	remote = remote.Unmap()
-	for _, p := range a.trusted {
-		if p.Contains(remote) {
-			if v := strings.TrimSpace(r.Header.Get("X-Real-IP")); v != "" {
-				return v
+	if !a.isTrusted(remote) {
+		a.warnUntrustedProxy(r, remote)
+		return remote.String()
+	}
+	if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+		var hops []string
+		for _, v := range xff {
+			hops = append(hops, strings.Split(v, ",")...)
+		}
+		for i := len(hops) - 1; i >= 0; i-- {
+			ip, err := netip.ParseAddr(strings.TrimSpace(hops[i]))
+			if err != nil {
+				return remote.String() // garbage from a hop we cannot trust
 			}
-			if v := r.Header.Get("X-Forwarded-For"); v != "" {
-				parts := strings.Split(v, ",")
-				return strings.TrimSpace(parts[len(parts)-1])
+			if ip = ip.Unmap(); !a.isTrusted(ip) {
+				return ip.String()
 			}
 		}
 	}
+	if ip, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Real-IP"))); err == nil {
+		return ip.Unmap().String()
+	}
 	return remote.String()
+}
+
+func (a *App) isTrusted(ip netip.Addr) bool {
+	for _, p := range a.trusted {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// warnUntrustedProxy logs once when proxy headers arrive from a peer that is
+// not in trusted_proxies: then every client looks like the proxy, and the
+// login lockout and the audit log cannot tell clients apart.
+func (a *App) warnUntrustedProxy(r *http.Request, peer netip.Addr) {
+	if a.Log == nil || (r.Header.Get("X-Forwarded-For") == "" && r.Header.Get("X-Real-IP") == "") {
+		return
+	}
+	a.untrustedOnce.Do(func() {
+		a.Log.Warn("request with X-Forwarded-For/X-Real-IP from a peer that is not in trusted_proxies; "+
+			"if LANLeecher runs behind this reverse proxy, add its address to trusted_proxies", "peer", peer.String())
+	})
 }
 
 // SessionCookie is the name of the login cookie.

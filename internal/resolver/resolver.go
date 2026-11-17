@@ -13,13 +13,34 @@ import (
 	"context"
 	"log/slog"
 	"net/netip"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/lan-dot-party/lanleecher/internal/config"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/store"
+)
+
+// Limits against probe queue flooding: attendees control which MAC/IP pairs
+// a router or a DHCP server reports, so one MAC must not be able to occupy
+// the probe queue or create unbounded suggestions.
+const (
+	// maxNewPairsPerMAC is the number of new (MAC, IP) pairs of one MAC that
+	// are queued per observation batch (one poll or lease list).
+	maxNewPairsPerMAC = 4
+	// maxReprobePairsPerMAC is the number of IPs of one MAC that are re-probed per cycle.
+	maxReprobePairsPerMAC = 4
+	// maxSuggestionsPerName is the number of merge suggestions created per (MAC, hostname).
+	maxSuggestionsPerName = 5
+	// concurrentWindow is how recent two sightings must be to count as "online at the same
+	// time": about two FDB reads (default 60s each).
+	concurrentWindow = 2 * time.Minute
+	// lastProbeMaxAge and lastProbeMaxSize bound the lastProbe map.
+	lastProbeMaxAge  = time.Hour
+	lastProbeMaxSize = 16384
 )
 
 // Pair is a MAC/IP association from an address source.
@@ -84,6 +105,7 @@ func (s *Service) ObserveARP(ctx context.Context, pairs []Pair, source string) {
 		return
 	}
 	now := store.Now()
+	queued := map[string]int{}
 	for _, p := range pairs {
 		if !p.IP.IsValid() || p.IP.IsUnspecified() || p.IP.IsMulticast() || p.MAC.IsZero() || p.MAC.IsMulticast() {
 			continue
@@ -104,7 +126,10 @@ func (s *Service) ObserveARP(ctx context.Context, pairs []Pair, source string) {
 		}
 		if isNew {
 			s.log.Debug("new ip", "mac", mac, "ip", p.IP, "source", source)
-			s.enqueue(p)
+			if queued[mac] < maxNewPairsPerMAC {
+				queued[mac]++
+				s.enqueue(p)
+			}
 		}
 	}
 }
@@ -123,6 +148,7 @@ type DHCPLease struct {
 func (s *Service) ObserveDHCP(ctx context.Context, leases []DHCPLease) int {
 	now := store.Now()
 	known := 0
+	queued := map[string]int{}
 	for _, l := range leases {
 		if !l.IP.IsValid() || l.MAC.IsZero() || l.MAC.IsMulticast() {
 			continue
@@ -142,7 +168,8 @@ func (s *Service) ObserveDHCP(ctx context.Context, leases []DHCPLease) int {
 			s.log.Warn("record ip", "mac", mac, "err", err)
 			continue
 		}
-		if isNew {
+		if isNew && queued[mac] < maxNewPairsPerMAC {
+			queued[mac]++
 			s.enqueue(Pair{MAC: l.MAC, IP: l.IP})
 		}
 		if name := cleanHostname(l.Hostname); name != "" {
@@ -183,7 +210,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) every(ctx context.Context, d time.Duration, fn func()) {
-	fn()
+	s.safely(fn)
 	t := time.NewTicker(d)
 	defer t.Stop()
 	for {
@@ -191,9 +218,19 @@ func (s *Service) every(ctx context.Context, d time.Duration, fn func()) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			fn()
+			s.safely(fn)
 		}
 	}
+}
+
+// safely runs one iteration and logs a panic instead of letting it kill the process.
+func (s *Service) safely(fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("panic in resolver loop", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	fn()
 }
 
 // reprobe queues every IP seen recently that was not probed within the interval.
@@ -203,9 +240,14 @@ func (s *Service) reprobe(ctx context.Context) {
 		s.log.Warn("active ips", "err", err)
 		return
 	}
+	s.pruneLastProbe(time.Now())
+	perMAC := map[string]int{}
 	for _, a := range active {
 		ip, err := netip.ParseAddr(a.IP)
 		if err != nil {
+			continue
+		}
+		if perMAC[a.MAC] >= maxReprobePairsPerMAC {
 			continue
 		}
 		s.mu.Lock()
@@ -215,8 +257,33 @@ func (s *Service) reprobe(ctx context.Context) {
 			continue
 		}
 		if mac, err := macaddr.Parse(a.MAC); err == nil {
+			perMAC[a.MAC]++
 			s.enqueue(Pair{MAC: mac, IP: ip})
 		}
+	}
+}
+
+// pruneLastProbe drops entries that are older than the re-probe interval
+// (they are due anyway) or lastProbeMaxAge, and, if the map is still too
+// large, the oldest ones.
+func (s *Service) pruneLastProbe(now time.Time) {
+	maxAge := max(lastProbeMaxAge, 2*s.cfg.ProbeInterval)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for ip, t := range s.lastProbe {
+		if now.Sub(t) > maxAge {
+			delete(s.lastProbe, ip)
+		}
+	}
+	for len(s.lastProbe) > lastProbeMaxSize {
+		var oldest netip.Addr
+		var ot time.Time
+		for ip, t := range s.lastProbe {
+			if !oldest.IsValid() || t.Before(ot) {
+				oldest, ot = ip, t
+			}
+		}
+		delete(s.lastProbe, oldest)
 	}
 }
 
@@ -275,7 +342,7 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 	if err != nil {
 		return
 	}
-	others, err := s.db.MACsWithHostname(ctx, name, mac, ev.StartedAt)
+	others, err := s.db.MACsWithHostname(ctx, name, mac, ev.StartedAt, maxSuggestionsPerName)
 	if err != nil {
 		s.log.Warn("merge lookup", "err", err)
 		return
@@ -289,6 +356,14 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 		if err != nil || od == dev {
 			continue
 		}
+		// Two MACs that are online at the same time are two devices. A
+		// hostname shared by both then comes from a clash or from an attendee
+		// copying a name to provoke a wrong merge, so nothing is suggested.
+		// Only the last sighting of each MAC is known, so this covers "both
+		// seen within concurrentWindow", not overlaps further back.
+		if together, err := s.db.OnlineTogether(ctx, mac, other, concurrentWindow); err != nil || together {
+			continue
+		}
 		created, err := s.db.CreateMergeSuggestion(ctx, mac, other, "hostname:"+name, ev.ID)
 		if err == nil && created {
 			s.log.Info("merge suggested", "mac_a", mac, "mac_b", other, "hostname", name)
@@ -296,17 +371,38 @@ func (s *Service) suggestMerges(ctx context.Context, mac, name string) {
 	}
 }
 
-// cleanHostname trims whitespace, NUL padding and a trailing dot.
+// maxHostnameRunes is the longest hostname kept (a DNS name has at most 253 characters).
+const maxHostnameRunes = 253
+
+// cleanHostname normalises a name that came from the network: it drops
+// invalid UTF-8, control characters, bidi controls and invisible characters
+// (which could reorder or hide parts of a name in the UI), trims whitespace,
+// NUL padding and a trailing dot, and cuts at maxHostnameRunes runes.
 func cleanHostname(s string) string {
-	s = strings.TrimSpace(strings.TrimRight(s, "\x00 "))
-	s = strings.TrimSuffix(s, ".")
-	if len(s) > 253 {
-		s = s[:253]
-	}
-	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+	s = strings.ToValidUTF8(s, "")
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || isInvisible(r) {
 			return -1
 		}
 		return r
 	}, s)
+	s = strings.TrimSpace(strings.TrimRight(s, " "))
+	s = strings.TrimSuffix(s, ".")
+	if r := []rune(s); len(r) > maxHostnameRunes {
+		s = string(r[:maxHostnameRunes])
+	}
+	return strings.TrimSpace(s)
+}
+
+// isInvisible reports bidi controls and zero-width or soft-hyphen characters.
+func isInvisible(r rune) bool {
+	switch {
+	case r >= 0x202a && r <= 0x202e, // bidi embeddings and overrides
+		r >= 0x2066 && r <= 0x2069, // bidi isolates
+		r >= 0x200b && r <= 0x200f, // zero-width space/joiners, LRM, RLM
+		r == 0x061c,                // Arabic letter mark
+		r == 0x2060, r == 0xfeff, r == 0x00ad:
+		return true
+	}
+	return false
 }

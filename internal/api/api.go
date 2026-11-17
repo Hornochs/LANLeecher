@@ -26,6 +26,7 @@ import (
 type API struct {
 	*app.App
 	limiter *auth.RateLimiter
+	streams streamLimits
 }
 
 // New creates the API handler.

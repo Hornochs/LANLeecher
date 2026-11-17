@@ -28,7 +28,9 @@ polling:
   fdb_interval: 60s
   timeout: 3s
   retries: 1
-  uplink_mac_threshold: 10
+  uplink_mac_threshold: 32
+  max_port_macs: 512
+  idle_mac_retention: 24h
 
 resolver:
   order: [snmp-arp, local-neigh, netbios, mdns, dns-ptr]

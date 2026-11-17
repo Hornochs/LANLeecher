@@ -167,38 +167,48 @@ func ptrQuery(ctx context.Context, ip netip.Addr, targets []netip.AddrPort, time
 		return "", err
 	}
 	var answer string
-	_, err = udpExchangeMulti(ctx, targets, query, timeout, func(b []byte) bool {
-		var p dnsmessage.Parser
-		h, err := p.Start(b)
-		if err != nil || !h.Response {
-			return false
+	_, err = udpExchangeMulti(ctx, targets, query, timeout, ip, func(b []byte) bool {
+		name, ok := parsePTRAnswer(b, qname, id, llmnr)
+		if ok {
+			answer = name
 		}
-		if err := p.SkipAllQuestions(); err != nil {
-			return false
-		}
-		for {
-			rh, err := p.AnswerHeader()
-			if err != nil {
-				return false
-			}
-			if rh.Type != dnsmessage.TypePTR || !strings.EqualFold(rh.Name.String(), qname) {
-				if err := p.SkipAnswer(); err != nil {
-					return false
-				}
-				continue
-			}
-			ptr, err := p.PTRResource()
-			if err != nil {
-				return false
-			}
-			answer = ptr.PTR.String()
-			return true
-		}
+		return ok
 	})
 	if err != nil {
 		return "", err
 	}
 	return answer, nil
+}
+
+// parsePTRAnswer extracts the PTR target for qname from a DNS response. With
+// checkID the transaction ID must equal id (LLMNR); mDNS responders do not
+// echo a meaningful ID, so it is not checked there.
+func parsePTRAnswer(b []byte, qname string, id uint16, checkID bool) (string, bool) {
+	var p dnsmessage.Parser
+	h, err := p.Start(b)
+	if err != nil || !h.Response || (checkID && h.ID != id) {
+		return "", false
+	}
+	if err := p.SkipAllQuestions(); err != nil {
+		return "", false
+	}
+	for {
+		rh, err := p.AnswerHeader()
+		if err != nil {
+			return "", false
+		}
+		if rh.Type != dnsmessage.TypePTR || !strings.EqualFold(rh.Name.String(), qname) {
+			if err := p.SkipAnswer(); err != nil {
+				return "", false
+			}
+			continue
+		}
+		ptr, err := p.PTRResource()
+		if err != nil {
+			return "", false
+		}
+		return ptr.PTR.String(), true
+	}
 }
 
 func reverseName(ip netip.Addr) (string, error) {
@@ -223,13 +233,16 @@ func reverseName(ip netip.Addr) (string, error) {
 }
 
 func udpExchange(ctx context.Context, target netip.AddrPort, req []byte, timeout time.Duration, accept func([]byte) bool) ([]byte, error) {
-	return udpExchangeMulti(ctx, []netip.AddrPort{target}, req, timeout, accept)
+	return udpExchangeMulti(ctx, []netip.AddrPort{target}, req, timeout, target.Addr(), accept)
 }
 
 // udpExchangeMulti sends req to all targets from one unprivileged socket and
-// returns the first response accepted by accept.
+// returns the first response accepted by accept. Only packets whose sender
+// address is from (the probed host) are considered: attendees can send UDP
+// to the probe socket's ephemeral port and must not be able to name a host
+// they are not (multicast queries are answered by unicast from the host).
 func udpExchangeMulti(ctx context.Context, targets []netip.AddrPort, req []byte, timeout time.Duration,
-	accept func([]byte) bool) ([]byte, error) {
+	from netip.Addr, accept func([]byte) bool) ([]byte, error) {
 	if timeout <= 0 {
 		timeout = time.Second
 	}
@@ -256,14 +269,22 @@ func udpExchangeMulti(ctx context.Context, targets []netip.AddrPort, req []byte,
 	}
 	buf := make([]byte, 1500)
 	for {
-		n, _, err := conn.ReadFromUDPAddrPort(buf)
+		n, src, err := conn.ReadFromUDPAddrPort(buf)
 		if err != nil {
 			return nil, err
+		}
+		if !sameHost(src.Addr(), from) {
+			continue
 		}
 		if accept(buf[:n]) {
 			return append([]byte(nil), buf[:n]...), nil
 		}
 	}
+}
+
+// sameHost compares two addresses ignoring IPv4-in-IPv6 mapping and IPv6 zones.
+func sameHost(a, b netip.Addr) bool {
+	return a.Unmap().WithZone("") == b.Unmap().WithZone("")
 }
 
 func randomID() uint16 {

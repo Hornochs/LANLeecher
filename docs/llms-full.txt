@@ -87,8 +87,10 @@ Each port has one role that decides who gets credited for its traffic:
 | `wan` | nobody – counted on the port only, shown per [internet connection](wan.md) | hidden |
 
 An unmarked uplink is the most common configuration mistake: all traffic behind it lands on one port
-group and tops every ranking. LANLeecher marks a port as **probably uplink** when it has more MACs
-than `polling.uplink_mac_threshold` or an LLDP neighbor; an operator confirms it by setting the role.
+group and tops every ranking. LANLeecher marks a port as **probably uplink** when, in three
+forwarding-table reads in a row, it has more MACs than `polling.uplink_mac_threshold` (32) or a
+switch as LLDP neighbor (one that announces bridge capability; PCs, phones and hypervisors that
+send LLDP do not count); an operator confirms it by setting the role.
 If the port is not an uplink – a hypervisor with many VMs, a server that speaks LLDP – an operator
 presses **Not an uplink**. The hint then stays off, whatever the port learns later, until the
 confirmation is withdrawn with **Check again** or the port is made an uplink.
@@ -196,6 +198,27 @@ beamer view is always dark.
 | `viewer` | see rankings, search, detail pages and events |
 | `operator` | additionally start/stop events, set port roles and visibility, merge devices |
 | `admin` | additionally manage switches, users, API tokens; see settings and the audit log |
+
+### MAC flooding and idle MACs
+
+A port that reports more MACs than `polling.max_port_macs` (512) in one forwarding-table read
+creates no new devices – an attendee flooding the switch with random MACs does not fill the
+database. Known MACs on that port are still updated, and the log warns about the port; port
+security on the switch (one sticky MAC per client port) stops the flood itself. MACs that never
+had any traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted every hour
+together with their location and name history; devices an operator named, annotated or hid are
+kept.
+
+### Cloned MACs
+
+Traffic of a port with exactly one MAC is credited to that MAC. If the latest forwarding-table read
+of another switch (or of the same one) still sees that MAC on another client port – typically an
+attendee who cloned someone's MAC to push traffic onto them – the traffic of both ports goes to
+*unassigned*, and the log warns once per MAC and hour. An attendee who simply moves to another port
+is credited again as soon as the old switch has been read once more (at most one
+`polling.fdb_interval`, because then the old port no longer has the MAC). Several MACs on one client
+port always form a port group. Neither can be ruled out completely in software: **port security
+with one sticky MAC per client port** on the switches is the reliable protection.
 
 
 ======== docs/api.md ========
@@ -446,7 +469,9 @@ An annotated example is in [configs/lanleecher.example.yaml](../configs/lanleech
 | `polling.fdb_interval` | duration | `1m` | The time between two reads of a switch's forwarding table (MAC → port). It is never shorter than polling.interval. |
 | `polling.timeout` | duration | `3s` | The timeout of a single SNMP request. |
 | `polling.retries` | int | `1` | The number of retries of a single SNMP request. |
-| `polling.uplink_mac_threshold` | int | `10` | Marks ports with more MACs than this as "probably uplink". |
+| `polling.uplink_mac_threshold` | int | `32` | UplinkMACThreshold: ports with more MACs than this (or a switch as LLDP neighbour) in several reads in a row get the hint "probably uplink". |
+| `polling.max_port_macs` | int | `512` | MaxPortMACs: a port with more MACs than this in one forwarding-table read creates no new devices (MAC flooding); known MACs are still updated. |
+| `polling.idle_mac_retention` | duration | `24h` | IdleMACRetention: MACs without any recorded traffic that were not seen for this long are deleted (with their location and name history). Devices with a display name, notes or hidden from rankings are kept. |
 
 ## `resolver` – Configures IP and hostname discovery
 
@@ -610,7 +635,7 @@ paths:
               type: object
               required: [name]
               properties:
-                name: {type: string, minLength: 1}
+                name: {type: string, minLength: 1, maxLength: 200}
                 notes: {type: string}
             example: {name: "Basement LAN #13", notes: ""}
       responses:
@@ -881,7 +906,7 @@ paths:
               type: object
               required: [name, starts_at, ends_at]
               properties:
-                name: {type: string, minLength: 1}
+                name: {type: string, minLength: 1, maxLength: 200}
                 notes: {type: string}
                 starts_at: {type: string, format: date-time}
                 ends_at: {type: string, format: date-time, description: Exclusive.}

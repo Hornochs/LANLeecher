@@ -78,6 +78,9 @@ type Target struct {
 //   - no MAC learned: unassigned on the port. It is never credited to a MAC
 //     that shows up later.
 //
+// The scheduler additionally books a single MAC as unassigned while the same
+// MAC is also on another client port (moved device or cloned MAC).
+//
 // Every delta is additionally booked on the port itself, whatever the target.
 func Attribute(role Role, macs []macaddr.MAC) Target {
 	if role.IsTransit() {

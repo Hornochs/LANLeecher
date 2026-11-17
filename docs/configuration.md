@@ -44,7 +44,9 @@ An annotated example is in [configs/lanleecher.example.yaml](../configs/lanleech
 | `polling.fdb_interval` | duration | `1m` | The time between two reads of a switch's forwarding table (MAC → port). It is never shorter than polling.interval. |
 | `polling.timeout` | duration | `3s` | The timeout of a single SNMP request. |
 | `polling.retries` | int | `1` | The number of retries of a single SNMP request. |
-| `polling.uplink_mac_threshold` | int | `10` | Marks ports with more MACs than this as "probably uplink". |
+| `polling.uplink_mac_threshold` | int | `32` | UplinkMACThreshold: ports with more MACs than this (or a switch as LLDP neighbour) in several reads in a row get the hint "probably uplink". |
+| `polling.max_port_macs` | int | `512` | MaxPortMACs: a port with more MACs than this in one forwarding-table read creates no new devices (MAC flooding); known MACs are still updated. |
+| `polling.idle_mac_retention` | duration | `24h` | IdleMACRetention: MACs without any recorded traffic that were not seen for this long are deleted (with their location and name history). Devices with a display name, notes or hidden from rankings are kept. |
 
 ## `resolver` – Configures IP and hostname discovery
 

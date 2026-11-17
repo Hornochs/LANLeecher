@@ -37,7 +37,11 @@ var staticFS embed.FS
 type Server struct {
 	*app.App
 	pages map[string]*template.Template
-	login *auth.LoginLimiter
+	// login locks (client address, username) pairs; loginIP locks a client
+	// address that tries many usernames. Neither locks a username for
+	// everyone, so nobody can lock the admin out.
+	login   *auth.LoginLimiter
+	loginIP *auth.LoginLimiter
 }
 
 var pageFiles = []string{
@@ -48,7 +52,7 @@ var pageFiles = []string{
 
 // New parses all templates.
 func New(a *app.App) (*Server, error) {
-	s := &Server{App: a, pages: map[string]*template.Template{}, login: auth.NewLoginLimiter()}
+	s := &Server{App: a, pages: map[string]*template.Template{}, login: auth.NewLoginLimiter(), loginIP: newIPLoginLimiter()}
 	for _, name := range pageFiles {
 		t, err := template.New(name).Funcs(funcs).ParseFS(templateFS,
 			"templates/layout.html", "templates/partials.html", "templates/"+name+".html")

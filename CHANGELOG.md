@@ -8,12 +8,50 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **MAC flooding:** a port with more than `polling.max_port_macs` (512) MACs in one forwarding-table
+  read creates no new devices (known MACs are still updated; the log warns), and MACs that never had
+  traffic and were not seen for `polling.idle_mac_retention` (24 h) are deleted hourly. Migration 00010.
+- **Login:** the lockout locks the pair of client address and user name after 5 failures and a
+  client address after 20 failures across user names, never a user name for everyone, so nobody can
+  lock the admin out. Behind a reverse proxy the client address comes from `X-Forwarded-For` read
+  right to left (trusted proxies skipped), `X-Real-IP` only as fallback, with a warning when proxy
+  headers arrive from an address outside `trusted_proxies`. The login form is limited to 8 KiB and
+  the user name to 64 characters; only local paths are accepted as the page after login.
+- Board stream (`/api/v1/board/stream`, public with `board.public`): at most 512 open streams, 8 per
+  client address (429 beyond that), and a client that stops reading is dropped after 15 s.
+- A warning at start when LANLeecher serves plain HTTP on a network address (the Docker default),
+  and a Docker note on HTTPS.
+- **Cloned MACs:** while the latest forwarding-table reads show a MAC on two client ports at once,
+  the traffic of those ports is booked as unassigned instead of crediting it to the MAC, and the
+  log warns. A device that moves to another port is credited again after the old switch's next
+  read. Port security on the switches remains the real protection (docs/concepts.md).
+
 - Build with Go 1.26.11 (was 1.24.7) and current `golang.org/x/*` modules. `govulncheck` reported
   about 47 reachable standard-library vulnerabilities (`net/http`, `crypto/x509`) for the old
   toolchain and reports none now.
+- SNMP walks stop after 20000 rows per table.
+- New SQLite database files are created with mode 0600. Event and schedule names are limited to 200
+  characters in the API.
+- Resolver: attendees can no longer flood the probe queue or the merge suggestions. New MAC/IP pairs
+  are capped per MAC and poll, merge suggestions per MAC and hostname, the `/merges` list shows the
+  newest 200 (with a note when cut), and the re-probe bookkeeping is pruned.
+- Resolver: name probe answers (NetBIOS, mDNS, LLMNR) are accepted only from the probed IP, and LLMNR
+  answers must carry the transaction ID of the query, so third parties cannot name a host.
+- Merge suggestions: no suggestion is created for two MACs that are online at the same time (an
+  identical hostname alone could provoke one), and `/merges` shows vendor and last port of both MACs.
+- Hostnames from the network are normalised: invalid UTF-8, control, bidi and zero-width characters
+  are dropped and long names are cut by characters, not bytes.
+- Resolver: a panic in the local-neigh or re-probe loop is logged and the loop keeps running.
 
 ### Changed
 
+- The "probably uplink" hint is much calmer: only a switch as LLDP neighbor (bridge capability) or
+  more than `polling.uplink_mac_threshold` MACs (default now 32, was 10) count, and only in three
+  forwarding-table reads in a row. Existing configs with `uplink_mac_threshold: 10` keep their value.
+
+- `examples/discord-top10.py` escapes Discord markdown in names and disables all mentions.
+- Background workers (pollers, resolvers, DHCP polling, planner) log a panic with its stack and keep
+  running instead of ending the process.
 - `/etc/lanleecher` is now mode `0751` (traversable, not listable), so the agent package can read
   its own configuration next to the server's.
 - The certificate checks of the Kea client moved to a shared package (`internal/tlsclient`), which

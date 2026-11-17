@@ -3,8 +3,10 @@ package web
 import (
 	"crypto/subtle"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/lan-dot-party/lanleecher/internal/app"
 	"github.com/lan-dot-party/lanleecher/internal/auth"
@@ -19,11 +21,46 @@ type loginData struct {
 	Username string
 }
 
+// safeNext accepts only a local path as the target after login. Control
+// characters and backslashes are refused because browsers drop or turn them
+// into "/" (so "/\t/host" or "/\\host" would leave the site).
 func safeNext(next string) string {
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		return "/"
+	}
+	for _, c := range next {
+		if c < 0x20 || c == 0x7f || c == '\\' {
+			return "/"
+		}
+	}
+	u, err := url.Parse(next)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || strings.HasPrefix(u.Path, "//") {
 		return "/"
 	}
 	return next
+}
+
+// maxLoginBody bounds the login form; maxUsername bounds what a client-chosen
+// username adds to the limiter keys and the audit log.
+const (
+	maxLoginBody = 8 << 10
+	maxUsername  = 64
+)
+
+// newIPLoginLimiter allows 20 failed logins per client address and 10
+// minutes, across all usernames (password spraying), then locks that address
+// for 5 minutes.
+func newIPLoginLimiter() *auth.LoginLimiter {
+	l := auth.NewLoginLimiter()
+	l.MaxFailures = 20
+	return l
+}
+
+func clipUsername(u string) string {
+	if utf8.RuneCountInString(u) <= maxUsername {
+		return u
+	}
+	return string([]rune(u)[:maxUsername])
 }
 
 func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
@@ -47,8 +84,9 @@ func (s *Server) renderLogin(w http.ResponseWriter, r *http.Request, status int,
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxLoginBody)
 	next := safeNext(r.PostFormValue("next"))
-	username := strings.TrimSpace(r.PostFormValue("username"))
+	username := clipUsername(strings.TrimSpace(r.PostFormValue("username")))
 	password := r.PostFormValue("password")
 	c, err := r.Cookie(loginCSRFCookie)
 	if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("_login_csrf"))) != 1 {
@@ -56,8 +94,8 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ip := s.ClientIP(r)
-	keys := []string{"ip:" + ip, "user:" + strings.ToLower(username)}
-	if err := s.login.Check(keys...); err != nil {
+	keys := []string{ip + "|" + strings.ToLower(username)}
+	if err := s.login.Check(keys...); err != nil || s.loginIP.Check(ip) != nil {
 		s.renderLogin(w, r, http.StatusTooManyRequests, "error.locked", next, username)
 		return
 	}
@@ -96,6 +134,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) loginFailed(w http.ResponseWriter, r *http.Request, keys []string, next, username string) {
 	s.login.Fail(keys...)
+	s.loginIP.Fail(s.ClientIP(r))
 	if err := s.DB.Audit(r.Context(), store.AuditEntry{Actor: "anonymous", Action: "login.failed", Target: username,
 		IP: s.ClientIP(r)}); err != nil {
 		s.Log.Error("audit log", "err", err, "action", "login.failed")

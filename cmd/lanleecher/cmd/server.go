@@ -21,6 +21,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/board"
 	"github.com/lan-dot-party/lanleecher/internal/kea"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
+	"github.com/lan-dot-party/lanleecher/internal/safego"
 	"github.com/lan-dot-party/lanleecher/internal/scheduler"
 	"github.com/lan-dot-party/lanleecher/internal/web"
 	"github.com/lan-dot-party/lanleecher/pkg/version"
@@ -85,8 +86,8 @@ var serverCmd = &cobra.Command{
 		r.Mount("/api", apiHandler.Routes())
 		r.With(a.SessionMiddleware).Mount("/", ui.Routes())
 
-		go a.Resolver.Run(ctx)
-		go a.Planner.Run(ctx)
+		go safego.Supervise(ctx, log, "resolver", a.Resolver.Run)
+		go safego.Supervise(ctx, log, "planner", a.Planner.Run)
 		if err := a.Sched.Start(ctx); err != nil {
 			return err
 		}
@@ -97,13 +98,15 @@ var serverCmd = &cobra.Command{
 			hup := make(chan os.Signal, 1)
 			signal.Notify(hup, syscall.SIGHUP)
 			for range hup {
-				log.Info("SIGHUP: reloading switches")
-				if err := a.Sched.Reload(ctx); err != nil {
-					log.Error("reload switches", "err", err)
-				}
-				if err := a.DHCP.Reload(ctx); err != nil {
-					log.Error("reload dhcp sources", "err", err)
-				}
+				safego.Do(log, "sighup", func() {
+					log.Info("SIGHUP: reloading switches")
+					if err := a.Sched.Reload(ctx); err != nil {
+						log.Error("reload switches", "err", err)
+					}
+					if err := a.DHCP.Reload(ctx); err != nil {
+						log.Error("reload dhcp sources", "err", err)
+					}
+				})
 			}
 		}()
 
@@ -125,6 +128,11 @@ var serverCmd = &cobra.Command{
 			}
 		}()
 		log.Info("http listening", "addr", e.cfg.Listen)
+		if e.cfg.PlainHTTPOnNetwork() {
+			log.Warn("plain HTTP on a network address: passwords, session cookies and API tokens cross the LAN unencrypted; "+
+				"put LANLeecher behind an HTTPS reverse proxy, set tls.cert_file/tls.key_file, or listen on 127.0.0.1",
+				"listen", e.cfg.Listen, "public_url", e.cfg.PublicURL)
+		}
 		select {
 		case err := <-errc:
 			if !errors.Is(err, http.ErrServerClosed) {

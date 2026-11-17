@@ -16,6 +16,7 @@ import (
 	"github.com/lan-dot-party/lanleecher/internal/config"
 	"github.com/lan-dot-party/lanleecher/internal/macaddr"
 	"github.com/lan-dot-party/lanleecher/internal/resolver"
+	"github.com/lan-dot-party/lanleecher/internal/safego"
 	"github.com/lan-dot-party/lanleecher/internal/secret"
 	"github.com/lan-dot-party/lanleecher/internal/snmp"
 	"github.com/lan-dot-party/lanleecher/internal/store"
@@ -38,6 +39,32 @@ type Manager struct {
 	mu      sync.Mutex
 	ctx     context.Context
 	pollers map[int64]*poller
+
+	// dupWarned limits the warning about a MAC on two client ports to one
+	// per MAC and hour.
+	dupMu     sync.Mutex
+	dupWarned map[string]time.Time
+}
+
+// warnDuplicateMAC logs that a MAC is on two client ports, at most once per
+// MAC and hour.
+func (m *Manager) warnDuplicateMAC(mac, port string, at time.Time) {
+	m.dupMu.Lock()
+	defer m.dupMu.Unlock()
+	if m.dupWarned == nil {
+		m.dupWarned = map[string]time.Time{}
+	}
+	if last, ok := m.dupWarned[mac]; ok && at.Sub(last) < time.Hour {
+		return
+	}
+	for k, t := range m.dupWarned {
+		if at.Sub(t) >= time.Hour {
+			delete(m.dupWarned, k)
+		}
+	}
+	m.dupWarned[mac] = at
+	m.log.Warn("MAC seen on two client ports (moved device or cloned MAC); its traffic is not credited until the tables agree",
+		"mac", mac, "port", port)
 }
 
 // New creates a manager. Call Start to begin polling.
@@ -51,6 +78,7 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	m.ctx = ctx
 	m.mu.Unlock()
+	go m.runRetention(ctx)
 	return m.Reload(ctx)
 }
 
@@ -94,7 +122,8 @@ func (m *Manager) Reload(ctx context.Context) error {
 		pctx, cancel := context.WithCancel(m.ctx)
 		p.cancel = cancel
 		m.pollers[id] = p
-		go p.run(pctx)
+		// poller.run has no per-cycle guard, so a panic restarts the poller after a pause.
+		go safego.Supervise(pctx, m.log.With("switch", s.Name), "poller", p.run)
 	}
 	return nil
 }

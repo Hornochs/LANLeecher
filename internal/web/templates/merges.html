@@ -1,14 +1,15 @@
 {{define "content"}}
 <h1>{{.T "merges.title"}}</h1>
 <p class="muted">{{.T "merges.hint"}}</p>
+{{if .Data.Truncated}}<p class="muted">{{.T "merges.truncated"}}</p>{{end}}
 <section class="card">
 <table>
   <thead><tr><th>{{.T "merges.device_a"}}</th><th>{{.T "merges.device_b"}}</th><th>{{.T "merges.reason"}}</th><th>{{.T "col.created"}}</th><th></th></tr></thead>
   <tbody>
   {{range .Data.Items}}
   <tr>
-    <td><a href="/devices/{{.S.DeviceA}}">{{.NameA}}</a><br><code class="small">{{.S.MACA}}</code></td>
-    <td><a href="/devices/{{.S.DeviceB}}">{{.NameB}}</a><br><code class="small">{{.S.MACB}}</code></td>
+    <td><a href="/devices/{{.S.DeviceA}}">{{.NameA}}</a><br><code class="small">{{.S.MACA}}</code><br><span class="muted small">{{.S.VendorA}}{{if not .S.VendorA}}{{$.T "merges.no_vendor"}}{{end}} · {{if .S.PortA}}{{.S.PortA}}{{else}}{{$.T "merges.no_port"}}{{end}}</span></td>
+    <td><a href="/devices/{{.S.DeviceB}}">{{.NameB}}</a><br><code class="small">{{.S.MACB}}</code><br><span class="muted small">{{.S.VendorB}}{{if not .S.VendorB}}{{$.T "merges.no_vendor"}}{{end}} · {{if .S.PortB}}{{.S.PortB}}{{else}}{{$.T "merges.no_port"}}{{end}}</span></td>
     <td>{{.S.Reason}}</td><td>{{dt .S.CreatedAt}}</td>
     <td>{{if $.Can "operator"}}
       <form method="post" action="/merges/{{.S.ID}}" class="inline">

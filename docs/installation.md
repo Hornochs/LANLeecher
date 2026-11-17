@@ -64,6 +64,12 @@ GID 101) and keeps the database `lanleecher.db` and the key `secret.key` in the 
 `0.0.0.0:9040` with `public_url: http://localhost:9040`; mount your own file over it to change
 values. There is no environment variable for `listen` or `public_url`; `TZ` sets the time zone.
 
+**Use HTTPS on a LAN party.** The built-in configuration serves plain HTTP on every interface, so
+passwords, session cookies and API tokens cross the network in clear text, and attendees on the same
+network can read them. Put the container behind an HTTPS reverse proxy (see
+[reverse-proxy.md](reverse-proxy.md)) with `public_url: https://…`, or set `tls.cert_file` and
+`tls.key_file`. LANLeecher logs a warning at start while it serves plain HTTP on a network address.
+
 ### Docker Compose
 
 The repository ships two examples that differ only in where the data lives:
@@ -99,7 +105,9 @@ docker compose cp lanleecher:/var/lib/lanleecher/secret.key ./secret.key  # and 
 With `compose.bind.yaml` the files are already in `./data/backups/`; back up `./data` (including
 `secret.key`). Never copy the live `lanleecher.db` while the container runs – use the backup command.
 `secret.key` must be backed up together with the database: without it the stored SNMP credentials
-cannot be decrypted.
+cannot be decrypted. The Docker data volume holds `secret.key` next to the database, so every backup
+or snapshot of that volume contains the key too: protect it like the key itself (restrict access,
+encrypt it, keep it off shared storage).
 
 Both examples use **host networking**, so the resolvers can reach clients via NetBIOS and mDNS and
 read the host's neighbor table. `ports:` has no effect then: the service listens on the host's

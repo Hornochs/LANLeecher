@@ -31,12 +31,27 @@ def get_board(base: str, token: str) -> dict:
         return json.load(resp)
 
 
+def escape(text: str) -> str:
+    """Neutralise Discord markdown and mentions in names that come from the network."""
+    out = []
+    for ch in text:
+        if ch in "\\*_~`|>[]()":
+            out.append("\\" + ch)
+        elif ch == "@":
+            out.append("@\u200b")
+        elif ch in "\r\n":
+            out.append(" ")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def lines(entries: list, field: str) -> str:
     medals = {1: "🥇", 2: "🥈", 3: "🥉"}
     out = []
     for e in entries:
         # Names come from the network: strip Discord markdown and mentions.
-        name = e["name"].replace("@", "@\u200b").replace("`", "'").replace("*", "").replace("_", "")
+        name = escape(e["name"])
         rank = medals.get(e["rank"], str(e["rank"]) + ".")
         out.append(f"{rank} **{name}** – {fmt_bytes(e[field])}")
     return "\n".join(out) or "–"
