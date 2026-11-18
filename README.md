@@ -10,9 +10,7 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 > Tested with TP-Link Omada and JetStream switches, and with a Grandstream GWN7721 (port traffic
 > only). Changes per release: [CHANGELOG.md](CHANGELOG.md); next steps: [docs/ROADMAP.md](docs/ROADMAP.md).
 
-![The dashboard during an event: totals, live throughput, top downloaders and uploaders](docs/images/dashboard.png)
-
-![The same dashboard in the dark theme](docs/images/dashboard-dark.png)
+![The dashboard during an event: totals, live throughput, top downloaders and uploaders](docs/images/dashboard-dark.png)
 
 ![The beamer view at /board, updated live after every poll](docs/images/board.png)
 
@@ -54,13 +52,6 @@ tables, or by hand), coloured by their current utilisation. Each internet connec
 an LTE backup) is reported on its own, with its booked bandwidth:
 
 ![A network map on a floor plan: core, three access switches and two internet connections with live rates](docs/images/map.png)
-
-<details>
-<summary>The same map in the dark theme</summary>
-
-![The network map in the dark theme](docs/images/map-dark.png)
-
-</details>
 
 ![The dashboard during an event with one tile per internet connection: rate and utilisation in both directions](docs/images/internet-dark.png)
 

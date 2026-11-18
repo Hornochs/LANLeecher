@@ -23,8 +23,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- README: status "in use", screenshots of the network map (light and dark) and of the internet
-  connection tiles (`docs/images/`, taken from a demo setup), ERS-Proxy and LANventory under
+- README and docs: all screenshots in the dark theme – new ones of the network map and of the
+  internet connection tiles, the device page retaken, the light dashboard image removed
+  (`docs/images/`, taken from a demo setup); status "in use"; ERS-Proxy and LANventory under
   related projects.
 
 ## [1.4.0] - 2026-11-17
