@@ -4,10 +4,11 @@
 uploads and turns it into rankings – in the browser, on the beamer and via API. The data comes
 straight from the switches via SNMP; nothing has to be installed on the guests' computers.
 
-> **Status: pre-release.** Polling via SNMP v2c/v3, accounting per MAC and event, uplink detection,
-> IP and hostname discovery (Kea DHCP, ARP, NetBIOS, mDNS, LLMNR, DNS), web UI in English and German,
-> beamer view, REST API, packages and Docker image. Tested with TP-Link Omada and JetStream switches, and with a Grandstream GWN7721 (port traffic only).
-> Next up: the first real LAN party. Progress is tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status: in use** – LANLeecher has run at a real LAN party. Polling via SNMP v2c/v3, accounting
+> per MAC and event, uplink detection, IP and hostname discovery (Kea DHCP, ARP, NetBIOS, mDNS, LLMNR,
+> DNS), web UI in English and German, beamer view, REST API, network map, packages and Docker image.
+> Tested with TP-Link Omada and JetStream switches, and with a Grandstream GWN7721 (port traffic
+> only). Changes per release: [CHANGELOG.md](CHANGELOG.md); next steps: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ![The dashboard during an event: totals, live throughput, top downloaders and uploaders](docs/images/dashboard.png)
 
@@ -45,6 +46,23 @@ straight from the switches via SNMP; nothing has to be installed on the guests' 
 - **Packages** for Debian/Ubuntu, Fedora/RHEL, Arch Linux and Alpine, and a multi-arch Docker image.
 
 ![A switch with its ports: roles, labels, learned MACs, traffic in the event and live rates](docs/images/ports-dark.png)
+
+### Network map and internet connections
+
+Switches and internet connections on a floor plan, linked automatically from LLDP (else from the MAC
+tables, or by hand), coloured by their current utilisation. Each internet connection (here fibre and
+an LTE backup) is reported on its own, with its booked bandwidth:
+
+![A network map on a floor plan: core, three access switches and two internet connections with live rates](docs/images/map.png)
+
+<details>
+<summary>The same map in the dark theme</summary>
+
+![The network map in the dark theme](docs/images/map-dark.png)
+
+</details>
+
+![The dashboard during an event with one tile per internet connection: rate and utilisation in both directions](docs/images/internet-dark.png)
 
 ## Design principles
 
@@ -176,6 +194,10 @@ go test ./...
 
 ## Related projects
 
+- [ERS-Proxy](https://github.com/lan-dot-party/ERS-Proxy) – one portal for the web interfaces of your switches, with
+  a fix for the EDM of old Avaya/Extreme ERS switches, a port dashboard and network maps.
+- [LANventory](https://github.com/lan-dot-party/LANventory) – inventory for LAN party equipment, including
+  electrical safety inspections.
 - [LANPilot](https://github.com/lan-dot-party/LANPilot) – monitor and control game servers at LAN parties.
 - [FlowGauge](https://github.com/lan-dot-party/flowgauge) – bandwidth monitoring with multi-WAN support.
 - [Discord-Gameserver-Notifier](https://github.com/lan-dot-party/Discord-Gameserver-Notifier) –

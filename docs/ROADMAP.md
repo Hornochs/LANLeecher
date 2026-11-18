@@ -14,12 +14,12 @@ The full design is in [PROJECT_PLAN.md](../PROJECT_PLAN.md). Status of the miles
 | 8 | REST API, board with SSE, Prometheus, OpenAPI | done |
 | 9 | Resolvers & history, Kea DHCP (2.x and 3.x), MAC vendor names | done |
 | 10 | Packages, Docker, release workflow | done |
-| 11 | Documentation & polish | done – real-LAN test pending |
+| 11 | Documentation & polish | done – used at a real LAN party |
 
 ## Next
 
 - **Upgrade test** in the release workflow, from the previous release to the new one.
-- **First real LAN party** and a report on the switch compatibility page.
+- **Field reports** from LAN parties on the switch compatibility page.
 
 Not planned: a gNMI collector, PostgreSQL (see [ADR 0005](adr/0005-sqlite-only.md)), SNMP v1
 (see [ADR 0003](adr/0003-no-snmp-v1.md)).
