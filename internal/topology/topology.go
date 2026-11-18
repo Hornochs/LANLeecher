@@ -24,13 +24,18 @@
 // connected to A on port P unless
 //   - another device on P has an LLDP link to A on P (X is behind it), or
 //   - on X, the port where A is learned also carries another device that is
-//     learned on P of A (that device lies between A and X).
+//     learned on P of A (that device lies between A and X), or
+//   - another device Y learned on P of A has A and X on different ports of
+//     its own (by its address table, or by an LLDP link to X): Y lies between
+//     A and X. This rule also works when X has no address table.
 //
 // The far end is the port of X where A is learned (chosen the same way), or
 // 0 when X has no table. The link source is "fdb". A device with a single
 // foreign switch on a port is always linked; an unmanaged switch in between
-// does not matter. Only MACs of ChassisID and BaseMAC count; per-port MACs of
-// a switch are not known.
+// does not matter. MACs of ChassisID and BaseMAC identify a device, and so do
+// its interface MACs (Snapshot.OwnMACs) where no other device claims them:
+// switches send frames from port and VLAN interface MACs, so that is what
+// other switches learn. An all-zero MAC identifies nothing.
 //
 // Self references and neighbours that are not among the devices are ignored.
 // The result is sorted by A device, A ifIndex, B device, B ifIndex, source.
@@ -54,6 +59,8 @@ type Snapshot struct {
 	System System
 	Ports  []*Port
 	FDB    []FDBEntry
+	// OwnMACs are the MAC addresses of the switch's interfaces (ifPhysAddress).
+	OwnMACs []string
 }
 
 // System identifies a switch.
@@ -154,7 +161,7 @@ func newGraph(devs []Device) *graph {
 		if d.Snap != nil {
 			names = append(names, d.Snap.System.Name)
 			for _, m := range []string{d.Snap.System.ChassisID, d.Snap.System.BaseMAC} {
-				if m = macaddr.NormalizeLoose(m); m != "" {
+				if m = macaddr.NormalizeLoose(m); m != "" && m != zeroMAC {
 					n.macs[m] = true
 					if _, dup := g.byMAC[m]; !dup {
 						g.byMAC[m] = n
@@ -170,7 +177,34 @@ func newGraph(devs []Device) *graph {
 			}
 		}
 	}
+	g.addOwnMACs()
 	return g
+}
+
+const zeroMAC = "00:00:00:00:00:00"
+
+// addOwnMACs adds the interface MACs of the devices (Snapshot.OwnMACs) after
+// all chassis IDs and base MACs: a MAC that is already taken, or that several
+// devices list, identifies no device.
+func (g *graph) addOwnMACs() {
+	owners := map[string][]*node{}
+	for _, n := range g.nodes {
+		if n.dev.Snap == nil {
+			continue
+		}
+		for _, m := range n.dev.Snap.OwnMACs {
+			if m = macaddr.NormalizeLoose(m); m != "" && m != zeroMAC {
+				owners[m] = append(owners[m], n)
+			}
+		}
+	}
+	for m, ns := range owners {
+		if _, taken := g.byMAC[m]; taken || len(ns) != 1 {
+			continue
+		}
+		g.byMAC[m] = ns[0]
+		ns[0].macs[m] = true
+	}
 }
 
 // resolve finds the device a neighbour is.
@@ -437,7 +471,7 @@ func (g *graph) fdbLinks(lldp []Link, paired map[[2]int64]bool) []Link {
 				continue
 			}
 			vx := views[x]
-			if shadowed(a, x, port, va, vx, lldpOn) {
+			if shadowed(a, x, port, views, lldpOn) {
 				continue
 			}
 			far := End{DeviceID: x.dev.ID}
@@ -460,19 +494,44 @@ func (g *graph) nodeByID(id int64) *node {
 }
 
 // shadowed reports whether x lies behind another device on a's port.
-func shadowed(a, x *node, port int, va, vx *fdbView, lldpOn map[*node]map[int][]*node) bool {
+func shadowed(a, x *node, port int, views map[*node]*fdbView, lldpOn map[*node]map[int][]*node) bool {
+	va, vx := views[a], views[x]
 	for _, y := range lldpOn[a][port] {
 		if y != x {
 			return true
 		}
 	}
-	fp, ok := vx.where[a]
-	if !ok {
-		return false
+	if fp, ok := vx.where[a]; ok {
+		for _, y := range vx.on[fp] {
+			if y != a && va.where[y] == port {
+				return true
+			}
+		}
 	}
-	for _, y := range vx.on[fp] {
-		if y != a && va.where[y] == port {
+	// Seen from another device y on the same port of a: a and x are on
+	// different ports of y, so y lies between them. This also works when x
+	// has no address table.
+	for _, y := range va.on[port] {
+		if y == x || y == a {
+			continue
+		}
+		vy := views[y]
+		toA, ok := vy.where[a]
+		if !ok {
+			continue
+		}
+		if toX, ok := vy.where[x]; ok && toX != toA {
 			return true
+		}
+		for p, ns := range lldpOn[y] {
+			if p == toA {
+				continue
+			}
+			for _, n := range ns {
+				if n == x {
+					return true
+				}
+			}
 		}
 	}
 	return false

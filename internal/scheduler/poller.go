@@ -34,6 +34,7 @@ type poller struct {
 
 	mu           sync.Mutex
 	macs         map[int][]macaddr.MAC // ifIndex -> MACs from the last FDB read
+	ownMACs      []string              // interface MACs of the switch (ifPhysAddress), for the map
 	live         map[int64]Rate
 	lastDuration time.Duration
 	lastFDB      time.Time
@@ -405,6 +406,9 @@ func (p *poller) pollFDB(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	p.macs = macs
+	if topo.ownMACs != nil {
+		p.ownMACs = topo.ownMACs
+	}
 	if len(entries) == 0 {
 		p.emptyFDB++
 	} else {
@@ -445,6 +449,7 @@ func (p *poller) pollFDB(ctx context.Context) error {
 // data could not be read and the stored data stays.
 type topology struct {
 	chassisID, baseMAC string
+	ownMACs            []string // nil = not read
 	neighbors          map[int]store.LLDPNeighbor
 	lag                map[int]int
 }
@@ -455,6 +460,11 @@ type topology struct {
 func (p *poller) readTopology(g *gosnmp.GoSNMP, ports []*store.Port, lldpAll map[int][]fdb.Neighbor) topology {
 	var t topology
 	t.chassisID, t.baseMAC = fdb.LocalChassis(g)
+	if own, err := fdb.OwnMACs(g); err != nil {
+		p.log.Debug("interface MACs not available", "err", err)
+	} else {
+		t.ownMACs = own
+	}
 	if lldpAll != nil {
 		t.neighbors = map[int]store.LLDPNeighbor{}
 		known := map[int]bool{}
@@ -497,6 +507,14 @@ func (p *poller) fdbTable() map[int][]macaddr.MAC {
 		out[k] = append([]macaddr.MAC(nil), v...)
 	}
 	return out
+}
+
+// interfaceMACs returns a copy of the switch's interface MACs from the last
+// FDB read (nil if none was read yet).
+func (p *poller) interfaceMACs() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.ownMACs...)
 }
 
 func (p *poller) rates() map[int64]Rate {

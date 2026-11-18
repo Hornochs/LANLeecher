@@ -172,3 +172,59 @@ func TestFDBPicksPortWithFewestMACs(t *testing.T) {
 		t.Errorf("links %+v", got)
 	}
 }
+
+// A test network (ported from ERS-Proxy): a VSP learns three TP-Link switches
+// on its port 1/48 (through an unmanaged switch); the TP-Links are linked to
+// each other by LLDP, one of them (sw02) has no address table, and the
+// TP-Links learn the VSP only by its port and VLAN interface MACs. Only sw03
+// is next to the VSP; sw01 and sw02 lie behind it.
+func TestFDBBehindSwitchFoundByOwnMACsAndThirdView(t *testing.T) {
+	const (
+		macVSP  = "84:83:71:f7:54:00"
+		vspPort = "84:83:71:f7:54:2f" // MAC of port 1/48
+		vspVLAN = "84:83:71:f7:54:80" // MAC of the VLAN interface
+		mac01   = "24:2f:d0:ec:c9:60"
+		mac02   = "70:4f:57:84:e0:33"
+		mac03   = "48:22:54:8a:24:ca"
+		other   = "02:00:00:00:99:99"
+	)
+	fdb := func(es ...any) []FDBEntry {
+		var out []FDBEntry
+		for i := 0; i < len(es); i += 2 {
+			out = append(out, FDBEntry{MAC: es[i].(string), IfIndex: es[i+1].(int)})
+		}
+		return out
+	}
+	vsp := snap("vsp", macVSP, fdb(mac01, 239, mac02, 239, mac03, 239, other, 239), port(239, "1/48", nil))
+	vsp.System.BaseMAC = "00:00:00:00:00:00"
+	vsp.OwnMACs = []string{vspPort, vspVLAN}
+	sw03 := snap("sw03", mac03, fdb(vspPort, 49153, other, 49153, mac02, 49154, mac01, 49161),
+		port(49153, "1/0/1", nb("02:00:00:00:00:04", "sw04", "1/0/9")),
+		port(49154, "1/0/2", nb(mac02, "sw02", "1/0/8")),
+		port(49161, "1/0/9", nb(mac01, "sw01", "1/0/9")))
+	sw01 := snap("sw01", mac01, fdb(mac03, 49161, vspVLAN, 49161, mac02, 49161), port(49161, "1/0/9", nb(mac03, "sw03", "1/0/9")))
+	sw02 := snap("sw02", mac02, nil, port(49160, "1/0/8", nb(mac03, "sw03", "1/0/2")))
+	got := Build([]Device{{ID: 8, Name: "vsp", Snap: vsp}, {ID: 4, Name: "sw03", Snap: sw03}, {ID: 5, Name: "sw02", Snap: sw02}, {ID: 6, Name: "sw01", Snap: sw01}})
+	want := []Link{
+		{A: End{4, 49153, "1/0/1"}, B: End{8, 239, "1/48"}, Source: "fdb"},
+		{A: End{4, 49154, "1/0/2"}, B: End{5, 49160, "1/0/8"}, Source: "lldp"},
+		{A: End{4, 49161, "1/0/9"}, B: End{6, 49161, "1/0/9"}, Source: "lldp"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("links\n got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestOwnMACClaimedTwiceOrZeroIdentifiesNothing(t *testing.T) {
+	// b and c both list the same interface MAC; a learns it on port 1: no link.
+	shared := "02:00:00:00:77:77"
+	a := snap("a", macA, []FDBEntry{{MAC: shared, IfIndex: 1}, {MAC: "00:00:00:00:00:00", IfIndex: 2}}, port(1, "1/1", nil), port(2, "1/2", nil))
+	b := snap("b", macB, nil)
+	b.OwnMACs = []string{shared}
+	c := snap("c", macC, nil)
+	c.OwnMACs = []string{shared}
+	c.System.BaseMAC = "00:00:00:00:00:00"
+	if got := Build([]Device{{ID: 1, Name: "a", Snap: a}, {ID: 2, Name: "b", Snap: b}, {ID: 3, Name: "c", Snap: c}}); len(got) != 0 {
+		t.Errorf("links %+v, want none", got)
+	}
+}

@@ -6,6 +6,19 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Network map:** adding, moving and removing switches and drawing or hiding links failed with
+  403, because the page did not hand the CSRF token to `map.js` (`<body data-csrf>`).
+- **Network map:** a newly added switch or internet connection is placed on a free spot near the
+  centre instead of exactly on top of the previous one.
+- **Network map:** switches that other switches learn only by their port or VLAN interface MACs are
+  recognised now (`ifPhysAddress` is read with the forwarding table), and a switch behind another
+  one on the same port is no longer drawn as directly linked when a third switch sees both on
+  different ports, which also works for switches without a MAC table. Ported from ERS-Proxy.
+- **SNMP:** a walk that the agent answers out of order (TP-Link T1500G while its MAC table changes)
+  is tried once more instead of failing the forwarding table read.
+
 ## [1.4.0] - 2026-11-17
 
 ### Security

@@ -199,6 +199,34 @@ func PreferredNeighbors(all map[int][]Neighbor) map[int]Neighbor {
 	return out
 }
 
+// oidIfPhysAddress is IF-MIB ifPhysAddress.
+const oidIfPhysAddress = "1.3.6.1.2.1.2.2.1.6"
+
+// OwnMACs reads the MAC addresses of the switch's interfaces (ifPhysAddress):
+// unicast, not all-zero, each once, sorted. Switches send frames from port
+// and VLAN interface MACs, so other switches learn those rather than the
+// chassis ID.
+func OwnMACs(g *gosnmp.GoSNMP) ([]string, error) {
+	rows, err := snmp.WalkColumn(g, oidIfPhysAddress)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, r := range rows {
+		m, ok := macaddr.FromBytes(snmp.Bytes(r.PDU))
+		if !ok || m.IsZero() || m.IsMulticast() {
+			continue
+		}
+		seen[m.String()] = true
+	}
+	out := make([]string, 0, len(seen))
+	for m := range seen {
+		out = append(out, m)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 // LocalChassis reads the switch's own LLDP chassis ID and its bridge base
 // MAC (dot1dBaseBridgeAddress). Either is "" when the agent has none.
 func LocalChassis(g *gosnmp.GoSNMP) (chassisID, baseMAC string) {

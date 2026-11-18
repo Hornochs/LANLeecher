@@ -237,6 +237,7 @@ func (s *Server) topologyInput(ctx context.Context, switches []*store.Switch, po
 			snap.Ports = append(snap.Ports, tp)
 		}
 		if !sw.Archived && s.Sched != nil {
+			snap.OwnMACs = s.Sched.OwnMACs(sw.ID)
 			for ifIndex, macs := range s.Sched.FDB(sw.ID) {
 				for _, m := range macs {
 					snap.FDB = append(snap.FDB, topology.FDBEntry{MAC: m.String(), IfIndex: ifIndex})
