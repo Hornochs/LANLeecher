@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-18
+
 ### Fixed
 
 - **Network map:** adding, moving and removing switches and drawing or hiding links failed with
@@ -18,6 +20,13 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   different ports, which also works for switches without a MAC table. Ported from ERS-Proxy.
 - **SNMP:** a walk that the agent answers out of order (TP-Link T1500G while its MAC table changes)
   is tried once more instead of failing the forwarding table read.
+
+### Changed
+
+- README and docs: all screenshots in the dark theme – new ones of the network map and of the
+  internet connection tiles, the device page retaken, the light dashboard image removed
+  (`docs/images/`, taken from a demo setup); status "in use"; ERS-Proxy and LANventory under
+  related projects.
 
 ## [1.4.0] - 2026-11-17
 
@@ -222,7 +231,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   LAN party guide, switch compatibility, API guide, architecture, security model, ADRs, examples,
   `llms.txt` and `llms-full.txt`.
 
-[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/lan-dot-party/LANLeecher/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/lan-dot-party/LANLeecher/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/lan-dot-party/LANLeecher/compare/v1.1.0...v1.2.0
