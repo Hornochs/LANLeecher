@@ -387,3 +387,22 @@ func TestWANLinks(t *testing.T) {
 		t.Errorf("no rate: %+v", got)
 	}
 }
+
+// map.js sends its POSTs with the CSRF token it reads from <body data-csrf>;
+// without it every edit (add a switch, move, link) fails with 403.
+func TestMapPageCarriesCSRFForScript(t *testing.T) {
+	h := newHarness(t)
+	h.user("admin", store.RoleAdmin)
+	h.login("admin")
+	m := &store.Map{Name: "Halle"}
+	if err := h.db.CreateMap(context.Background(), m); err != nil {
+		t.Fatal(err)
+	}
+	resp, body := h.get(fmt.Sprintf("/maps/%d", m.ID))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if !strings.Contains(body, `data-csrf="`+h.csrf+`"`) {
+		t.Error("the page does not hand the CSRF token to map.js (body data-csrf)")
+	}
+}

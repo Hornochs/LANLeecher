@@ -291,6 +291,21 @@
     ports.value = prev || "0";
   }
 
+  // freeSpot is where a newly added node goes: the centre, or else the first
+  // point on a spiral around it that no other node covers, so new nodes never
+  // hide under each other.
+  function freeSpot(nodes) {
+    var dx = 140 / state.map.width, dy = 60 / state.map.height; // about one node box
+    for (var i = 0; i < 200; i++) {
+      var r = Math.ceil(Math.sqrt(i) / 2), a = i * 2.4; // golden-angle spiral
+      var x = Math.min(0.95, Math.max(0.05, 0.5 + (i ? r * dx * Math.cos(a) : 0)));
+      var y = Math.min(0.95, Math.max(0.05, 0.5 + (i ? r * dy * Math.sin(a) : 0)));
+      var taken = nodes.some(function (n) { return Math.abs(n.x - x) < dx && Math.abs(n.y - y) < dy; });
+      if (!taken) return { x: x, y: y };
+    }
+    return { x: 0.5, y: 0.5 };
+  }
+
   if (admin && editor) {
     var toggle = document.getElementById("map-edit-toggle");
     var setEditing = function (on) {
@@ -307,7 +322,8 @@
       var id = Number(v[1]);
       if (!id || (v[0] !== "switch" && v[0] !== "wan")) return;
       var nodes = state.nodes.slice();
-      nodes.push({ kind: v[0], id: id, x: 0.5, y: 0.5 });
+      var p = freeSpot(nodes);
+      nodes.push({ kind: v[0], id: id, x: p.x, y: p.y });
       saveNodes(nodes);
     });
     var form = document.getElementById("map-link-form");
