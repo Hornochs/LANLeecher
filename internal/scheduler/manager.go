@@ -210,6 +210,18 @@ func (m *Manager) FDB(switchID int64) map[int][]macaddr.MAC {
 	return p.fdbTable()
 }
 
+// OwnMACs returns the interface MACs (ifPhysAddress) a switch reported with
+// its last forwarding table read, or nil.
+func (m *Manager) OwnMACs(switchID int64) []string {
+	m.mu.Lock()
+	p := m.pollers[switchID]
+	m.mu.Unlock()
+	if p == nil {
+		return nil
+	}
+	return p.interfaceMACs()
+}
+
 // LivePortRates returns the current rates of all ports of all switches by
 // port ID, leaving out readings older than three poll intervals.
 func (m *Manager) LivePortRates() map[int64]Rate {

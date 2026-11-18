@@ -237,11 +237,23 @@ type Row struct {
 	PDU   gosnmp.SnmpPDU
 }
 
+// isNotIncreasing reports gosnmp's error for an agent that answered a walk
+// with an OID that is not after the previous one.
+func isNotIncreasing(err error) bool {
+	return strings.Contains(err.Error(), "OID not increasing")
+}
+
 // WalkColumn walks a table column and returns rows with parsed indexes.
-// A missing column ("no such object") yields no rows and no error.
+// A missing column ("no such object") yields no rows and no error. A walk the
+// agent answers out of order is tried once more.
 func WalkColumn(g *gosnmp.GoSNMP, column string) ([]Row, error) {
 	prefix := "." + strings.TrimPrefix(column, ".")
 	pdus, err := walkLimited(g.BulkWalk, prefix)
+	if err != nil && isNotIncreasing(err) {
+		// Some agents (TP-Link T1500G, address tables) now and then answer
+		// out of order while the table changes; a second walk usually works.
+		pdus, err = walkLimited(g.BulkWalk, prefix)
+	}
 	if err != nil {
 		return nil, err
 	}

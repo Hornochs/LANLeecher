@@ -17,7 +17,9 @@ the map simply finds fewer links for it. Links can always be added by hand.
 Each poll of the forwarding table (FDB) also reads, best effort and without ever failing the poll:
 
 - the switch's own **LLDP chassis ID** (`lldpLocChassisId`) and **bridge base MAC**
-  (`dot1dBaseBridgeAddress`),
+  (`dot1dBaseBridgeAddress`; all zeros counts as none),
+- the switch's **interface MACs** (`ifPhysAddress`, kept in memory only): switches send frames from
+  their port and VLAN interface MACs, so other switches often learn those instead of the chassis ID,
 - the **LLDP neighbors** per port (chassis ID, system name, port ID, port description, bridge
   capability); if a port has several neighbors, the one that is a bridge is preferred,
 - the **link aggregation** (LAG) memberships: `dot3adAggPortAttachedAggID`, and for TP-Link
@@ -28,9 +30,12 @@ The map then links switches in this order:
 1. **LLDP.** A neighbor whose chassis ID is the chassis ID or base MAC of a known switch (else whose
    system name is the name or sysName of one) gives a link. The far port is the one the neighbor
    names as its port ID or description, or else the port on the far switch that sees this switch.
-2. **MAC tables (FDB).** For pairs of switches without an LLDP link: if the MAC of switch X is
-   learned on port P of switch A, they are linked on P, unless X lies behind another switch on P.
-   The far end is found the same way from X's table. These links are drawn dashed.
+2. **MAC tables (FDB).** For pairs of switches without an LLDP link: if a MAC of switch X (chassis
+   ID, base MAC, or an interface MAC no other switch also lists) is learned on port P of switch A,
+   they are linked on P, unless X lies behind another switch Y on P. Y counts as in between when it
+   has an LLDP link to A on P, when X learns A and Y on the same port, or when Y has A and X on
+   different ports of its own (by its MAC table or an LLDP link to X); the last rule also works when
+   X has no MAC table. The far end is found the same way from X's table. These links are drawn dashed.
 3. **By hand.** Admins can draw a link between two switches and pick the ports, which is the way
    to connect switches that offer neither LLDP nor a usable MAC table.
 
